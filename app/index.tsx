@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
   scrollPadding: {
-    paddingTop: 60,
+    paddingTop: 30,
     paddingBottom: 40,
     flexGrow: 1, // Ensures the scroll view can expand
   },

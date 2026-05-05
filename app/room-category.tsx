@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: "#F8FAFC" },
   container: { flex: 1, paddingHorizontal: 20 },
 
-  header: { marginTop: 60, marginBottom: 20 },
+  header: { marginTop: 30, marginBottom: 20 },
   hotelName: {
     fontSize: 26,
     fontWeight: "800",
