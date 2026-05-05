@@ -111,10 +111,21 @@ export default function RootLayout() {
         />
 
         <Drawer.Screen
+          name="add-rooms"
+          options={{
+            drawerLabel: "Add Rooms",
+            title: "Add Rooms",
+            drawerIcon: ({ color }) => (
+              <Ionicons name="bed" size={22} color={color} />
+            ),
+          }}
+        />
+
+        <Drawer.Screen
           name="room-category"
           options={{
-            drawerLabel: "Room Category",
-            title: "Room Category",
+            drawerLabel: "Room Managements",
+            title: "Room Managements",
             drawerIcon: ({ color }) => (
               <Ionicons name="bed" size={22} color={color} />
             ),
