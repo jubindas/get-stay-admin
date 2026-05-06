@@ -1,8 +1,12 @@
+import Header from "@/components/Header";
 import { Ionicons } from "@expo/vector-icons";
+
 import React from "react";
+
 import {
   Image,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -29,148 +33,143 @@ const COLORS = {
 
 export default function Profile() {
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* ── Hero Header ── */}
-      <View style={styles.heroSection}>
-        {/* Background decoration */}
-        <View style={styles.heroBg} />
-        <View style={styles.heroBgCircle1} />
-        <View style={styles.heroBgCircle2} />
+    <View style={{ flex: 1, backgroundColor: COLORS.bgLight }}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-        {/* Avatar */}
-        <View style={styles.avatarOuterRing}>
-          <View style={styles.avatarInnerRing}>
-            <Image
-              source={require("../assets/img/logo.png")}
-              style={styles.avatar}
-            />
+      <Header />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.heroSection}>
+          {/* Background decoration */}
+          <View style={styles.heroBg} />
+          <View style={styles.heroBgCircle1} />
+          <View style={styles.heroBgCircle2} />
+
+          <View style={styles.avatarOuterRing}>
+            <View style={styles.avatarInnerRing}>
+              <Image
+                source={require("../assets/img/logo.png")}
+                style={styles.avatar}
+              />
+            </View>
           </View>
+
+          <View style={styles.onlineBadge}>
+            <View style={styles.onlineDot} />
+            <Text style={styles.onlineText}>Active</Text>
+          </View>
+
+          <Text style={styles.heroName}>Zubeens Hotel</Text>
+          <Text style={styles.heroRole}>Hotel Owner · Assam, India</Text>
         </View>
 
-        {/* Online badge */}
-        <View style={styles.onlineBadge}>
-          <View style={styles.onlineDot} />
-          <Text style={styles.onlineText}>Active</Text>
+        <View style={styles.statsStrip}>
+          <StatBox
+            title="Rooms"
+            value="24"
+            icon="bed-outline"
+            color={COLORS.primaryBlue}
+            soft={COLORS.blueSoft}
+          />
+          <View style={styles.statDivider} />
+          <StatBox
+            title="Bookings"
+            value="132"
+            icon="calendar-outline"
+            color={COLORS.teal}
+            soft={COLORS.tealSoft}
+          />
+          <View style={styles.statDivider} />
+          <StatBox
+            title="Revenue"
+            value="₹1.2L"
+            icon="cash-outline"
+            color={COLORS.activeIndicator}
+            soft="#EFF6FF"
+          />
         </View>
 
-        <Text style={styles.heroName}>Zubeens Hotel</Text>
-        <Text style={styles.heroRole}>Hotel Owner · Assam, India</Text>
-      </View>
+        <Text style={styles.sectionTitle}>Hotel Information</Text>
 
-      {/* ── Stats Strip ── */}
-      <View style={styles.statsStrip}>
-        <StatBox
-          title="Rooms"
-          value="24"
-          icon="bed-outline"
-          color={COLORS.primaryBlue}
-          soft={COLORS.blueSoft}
-        />
-        <View style={styles.statDivider} />
-        <StatBox
-          title="Bookings"
-          value="132"
-          icon="calendar-outline"
-          color={COLORS.teal}
-          soft={COLORS.tealSoft}
-        />
-        <View style={styles.statDivider} />
-        <StatBox
-          title="Revenue"
-          value="₹1.2L"
-          icon="cash-outline"
-          color={COLORS.activeIndicator}
-          soft="#EFF6FF"
-        />
-      </View>
-
-      {/* ── Section Title ── */}
-      <Text style={styles.sectionTitle}>Hotel Information</Text>
-
-      {/* ── Info Card ── */}
-      <View style={styles.infoCard}>
-        <InfoRow
-          icon="business-outline"
-          label="Hotel Name"
-          value="Zubeens Hotel"
-          isLast={false}
-        />
-        <InfoRow
-          icon="location-outline"
-          label="Location"
-          value="Assam, India"
-          isLast={false}
-        />
-        <InfoRow
-          icon="mail-outline"
-          label="Email"
-          value="hotel@email.com"
-          isLast={false}
-        />
-        <InfoRow
-          icon="call-outline"
-          label="Phone"
-          value="+91 9876543210"
-          isLast={true}
-        />
-      </View>
-
-      {/* ── Actions ── */}
-      <Text style={styles.sectionTitle}>Account</Text>
-      <View style={styles.actionsCard}>
-        <ActionRow
-          icon="create-outline"
-          label="Edit Profile"
-          sublabel="Update your hotel details"
-          iconColor={COLORS.primaryBlue}
-          iconBg={COLORS.blueSoft}
-          showChevron
-          isLast={false}
-        />
-        <ActionRow
-          icon="notifications-outline"
-          label="Notifications"
-          sublabel="Manage alerts & preferences"
-          iconColor={COLORS.teal}
-          iconBg={COLORS.tealSoft}
-          showChevron
-          isLast={false}
-        />
-        <ActionRow
-          icon="shield-checkmark-outline"
-          label="Privacy & Security"
-          sublabel="Password, 2FA settings"
-          iconColor={COLORS.activeIndicator}
-          iconBg="#EFF6FF"
-          showChevron
-          isLast={true}
-        />
-      </View>
-
-      {/* ── Logout ── */}
-      <TouchableOpacity style={styles.logoutBtn} activeOpacity={0.8}>
-        <View style={styles.logoutIconWrap}>
-          <Ionicons name="log-out-outline" size={20} color={COLORS.danger} />
+        <View style={styles.infoCard}>
+          <InfoRow
+            icon="business-outline"
+            label="Hotel Name"
+            value="Zubeens Hotel"
+            isLast={false}
+          />
+          <InfoRow
+            icon="location-outline"
+            label="Location"
+            value="Assam, India"
+            isLast={false}
+          />
+          <InfoRow
+            icon="mail-outline"
+            label="Email"
+            value="hotel@email.com"
+            isLast={false}
+          />
+          <InfoRow
+            icon="call-outline"
+            label="Phone"
+            value="+91 9876543210"
+            isLast={true}
+          />
         </View>
-        <Text style={styles.logoutText}>Log Out</Text>
-        <Ionicons
-          name="chevron-forward"
-          size={16}
-          color={COLORS.danger}
-          style={{ marginLeft: "auto" }}
-        />
-      </TouchableOpacity>
 
-      <Text style={styles.version}>GetStay v1.0.0</Text>
-    </ScrollView>
+        <Text style={styles.sectionTitle}>Account</Text>
+        <View style={styles.actionsCard}>
+          <ActionRow
+            icon="create-outline"
+            label="Edit Profile"
+            sublabel="Update your hotel details"
+            iconColor={COLORS.primaryBlue}
+            iconBg={COLORS.blueSoft}
+            showChevron
+            isLast={false}
+          />
+          <ActionRow
+            icon="notifications-outline"
+            label="Notifications"
+            sublabel="Manage alerts & preferences"
+            iconColor={COLORS.teal}
+            iconBg={COLORS.tealSoft}
+            showChevron
+            isLast={false}
+          />
+          <ActionRow
+            icon="shield-checkmark-outline"
+            label="Privacy & Security"
+            sublabel="Password, 2FA settings"
+            iconColor={COLORS.activeIndicator}
+            iconBg="#EFF6FF"
+            showChevron
+            isLast={true}
+          />
+        </View>
+
+        <TouchableOpacity style={styles.logoutBtn} activeOpacity={0.8}>
+          <View style={styles.logoutIconWrap}>
+            <Ionicons name="log-in-outline" size={20} color={COLORS.danger} />
+          </View>
+          <Text style={styles.logoutText}>Log in</Text>
+          <Ionicons
+            name="chevron-forward"
+            size={16}
+            color={COLORS.danger}
+            style={{ marginLeft: "auto" }}
+          />
+        </TouchableOpacity>
+
+        <Text style={styles.version}>GetStay v1.0.0</Text>
+      </ScrollView>
+    </View>
   );
 }
-
-/* ── Sub-components ── */
 
 const InfoRow = ({ icon, label, value, isLast }: any) => (
   <View style={[styles.infoRow, !isLast && styles.infoRowBorder]}>
@@ -220,8 +219,6 @@ const ActionRow = ({
   </TouchableOpacity>
 );
 
-/* ── Styles ── */
-
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
@@ -231,7 +228,6 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
 
-  /* ── Hero ── */
   heroSection: {
     alignItems: "center",
     paddingTop: 48,
@@ -326,7 +322,6 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
-  /* ── Stats Strip ── */
   statsStrip: {
     flexDirection: "row",
     backgroundColor: COLORS.white,
@@ -370,7 +365,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  /* ── Section Title ── */
   sectionTitle: {
     fontSize: 12,
     fontWeight: "700",
@@ -382,7 +376,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
 
-  /* ── Info Card ── */
   infoCard: {
     backgroundColor: COLORS.cardBg,
     marginHorizontal: 16,

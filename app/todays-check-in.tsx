@@ -1,3 +1,4 @@
+import Header from "@/components/Header";
 import { Ionicons } from "@expo/vector-icons";
 
 import React, { useEffect, useRef } from "react";
@@ -68,6 +69,7 @@ export default function TodaysCheckIn() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
+      <Header />
 
       <View style={styles.header}>
         <View>

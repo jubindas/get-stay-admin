@@ -1,10 +1,13 @@
+import Header from "@/components/Header";
 import React, { useMemo, useRef, useState } from "react";
+
 import {
   Animated,
   Dimensions,
   Modal,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,12 +17,14 @@ import {
 const { width } = Dimensions.get("window");
 
 const HORIZONTAL_PADDING = 40;
-const CARD_PADDING = 10;
-const CALENDAR_INTERNAL_WIDTH = width - HORIZONTAL_PADDING - CARD_PADDING * 2;
-const CELL_MARGIN = 2;
-const COLUMN_WIDTH = CALENDAR_INTERNAL_WIDTH / 7 - CELL_MARGIN * 2;
 
-// ─── Date helpers ────────────────────────────────────────────────────────────
+const CARD_PADDING = 10;
+
+const CALENDAR_INTERNAL_WIDTH = width - HORIZONTAL_PADDING - CARD_PADDING * 2;
+
+const CELL_MARGIN = 2;
+
+const COLUMN_WIDTH = CALENDAR_INTERNAL_WIDTH / 7 - CELL_MARGIN * 2;
 
 const MONTH_NAMES = [
   "January",
@@ -36,21 +41,14 @@ const MONTH_NAMES = [
   "December",
 ];
 
-/** Days in a given month (0-indexed month) */
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
-/**
- * Monday-based week offset for the 1st of the month.
- * Mon=0 … Sun=6
- */
 function firstDayOffset(year: number, month: number): number {
   const day = new Date(year, month, 1).getDay(); // 0=Sun … 6=Sat
   return (day + 6) % 7; // shift so Mon=0
 }
-
-/** Build an array of { year, month } for today + 5 more months (max 6 total) */
 function buildMonthList(): { year: number; month: number }[] {
   const today = new Date();
   const result = [];
@@ -60,8 +58,6 @@ function buildMonthList(): { year: number; month: number }[] {
   }
   return result;
 }
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface RoomData {
   day: number;
@@ -78,18 +74,19 @@ interface StatusColors {
   border: string;
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
-
 export default function RoomCategory() {
   const [selectedType, setSelectedType] = useState<string>("Single Room");
+
   const [selectedDay, setSelectedDay] = useState<RoomData | null>(null);
+
   const [selectedMonthIdx, setSelectedMonthIdx] = useState<number>(0);
+
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const monthList = useMemo(() => buildMonthList(), []);
+
   const currentMonthMeta = monthList[selectedMonthIdx];
 
-  /** Generate room data for every day of a specific month */
   const generateMonthData = (
     type: string,
     year: number,
@@ -125,6 +122,7 @@ export default function RoomCategory() {
     currentMonthMeta.year,
     currentMonthMeta.month,
   );
+
   const blankDays = Array.from({ length: blankCount }, (_, i) => i);
 
   const handleTypeChange = (type: string) => {
@@ -162,21 +160,19 @@ export default function RoomCategory() {
   };
 
   const totalAvailable = days.reduce((s, d) => s + d.availableRooms, 0);
+
   const totalBooked = days.reduce((s, d) => s + d.bookedRooms, 0);
+
   const totalRooms = (days[0]?.totalRooms ?? 0) * days.length;
 
   const modalMonthName = selectedDay ? MONTH_NAMES[selectedDay.month] : "";
 
   return (
     <View style={styles.mainWrapper}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <Text style={styles.hotelName}>Get Stay Hotel</Text>
-          <Text style={styles.headerSubtitle}>Occupancy Dashboard</Text>
-        </View>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-        {/* ── Summary ── */}
+      <Header />
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.summaryRow}>
           <View
             style={[
@@ -219,7 +215,6 @@ export default function RoomCategory() {
           </View>
         </View>
 
-        {/* ── Room Type Segment ── */}
         <View style={styles.segmentContainer}>
           {["Single Room", "Double Bed", "King Suite"].map((type) => (
             <TouchableOpacity
@@ -242,7 +237,6 @@ export default function RoomCategory() {
           ))}
         </View>
 
-        {/* ── Month Picker ── */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -280,9 +274,7 @@ export default function RoomCategory() {
           })}
         </ScrollView>
 
-        {/* ── Calendar ── */}
         <Animated.View style={[styles.calendarCard, { opacity: fadeAnim }]}>
-          {/* Month title with nav arrows */}
           <View style={styles.calendarHeader}>
             <TouchableOpacity
               onPress={() =>
@@ -379,10 +371,10 @@ export default function RoomCategory() {
                   ]}
                 >
                   <Text style={[styles.dayNumber, { color: colors.text }]}>
-                    {item.day}
+                    {item.availableRooms}
                   </Text>
                   <Text style={[styles.availText, { color: colors.text }]}>
-                    {item.availableRooms}
+                    {item.day}
                   </Text>
                 </Pressable>
               );
@@ -496,20 +488,9 @@ export default function RoomCategory() {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: "#F8FAFC" },
-  container: { flex: 1, paddingHorizontal: 20 },
-
-  header: { marginTop: 30, marginBottom: 20 },
-  hotelName: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#1E293B",
-    letterSpacing: -0.5,
-  },
-  headerSubtitle: { fontSize: 14, color: "#64748B", marginTop: 2 },
+  container: { flex: 1, paddingHorizontal: 20, marginTop: 20 },
 
   summaryRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
   summaryCard: {

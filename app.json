@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "get-stay-admin",
+    "name": "GetStay Admin",
     "slug": "get-stay-admin",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/img/logo.png",
     "scheme": "getstayadmin",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,12 +14,13 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/img/logo.png",
+        "backgroundImage": "./assets/img/logo.png",
+        "monochromeImage": "./assets/img/logo.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.jubindas.getstayadmin"
     },
     "web": {
       "output": "static",
@@ -43,6 +44,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e137d49f-6942-41b4-b892-7cd1e38a2a75"
+      }
     }
   }
 }

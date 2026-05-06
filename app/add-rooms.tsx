@@ -1,20 +1,22 @@
+import Header from "@/components/Header";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+
 import React, { useState } from "react";
+
 import {
-    LayoutAnimation,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    UIManager,
-    View,
+  LayoutAnimation,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  UIManager,
+  View,
 } from "react-native";
 
-// Enable LayoutAnimation for Android
 if (
   Platform.OS === "android" &&
   UIManager.setLayoutAnimationEnabledExperimental
@@ -22,7 +24,6 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// --- TypeScript Interfaces ---
 interface RoomAvailability {
   checkInTime: string;
   checkOutTime: string;
@@ -89,6 +90,7 @@ export default function AddRooms() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
+      <Header />
 
       <ScrollView
         contentContainerStyle={styles.content}

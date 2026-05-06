@@ -1,283 +1,640 @@
-import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef, useState } from "react";
+import { useRouter } from "expo-router";
+
 import {
-  Animated,
+  ArrowRight,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+} from "lucide-react-native";
+
+import { AnimatePresence, MotiText, MotiView } from "moti";
+
+import { MotiPressable } from "moti/interactions";
+
+import React, { useState } from "react";
+
+import {
+  Alert,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 
-// Components
-import BookingsChart from "@/components/BookingsChart";
-import OccupancyCard from "@/components/OccupancyCard";
-import RevenueChart from "@/components/RevenueChart";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
-const COLORS = {
-  primaryBlue: "#003399",
-  bg: "#F4F6F8",
-  white: "#FFFFFF",
-  orangeChart: "#F97316",
-  tealCheck: "#38B2AC",
-  pinkCheckOut: "#F87171",
-  textMain: "#1F2937",
-  textSubtle: "#6B7280",
-};
 
-export default function ZenDashboard() {
-  const [activeTab, setActiveTab] = useState("Bookings");
+const ACCENT = "#4F6EF7";
+const BG = "#F8FAFF";
+const SURFACE = "#FFFFFF";
+const BORDER = "#E2E8F0";
+const BORDER_FOCUS = "#4F6EF7";
+const TEXT_DARK = "#0F172A";
+const TEXT_MID = "#64748B";
+const TEXT_LIGHT = "#94A3B8";
 
-  // Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 20,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
 
-  const renderAnalyticsContent = () => {
-    switch (activeTab) {
-      case "Bookings":
-        return <BookingsChart />;
-      case "Revenue":
-        return <RevenueChart />;
-      case "Occupancy":
-        return <OccupancyCard />;
-      default:
-        return null;
-    }
-  };
+function FloatingOrb({
+  size,
+  color,
+  delay,
+  initialX,
+  initialY,
+}: {
+  size: number;
+  color: string;
+  delay: number;
+  initialX: number;
+  initialY: number;
+}) {
+  return (
+    <MotiView
+      from={{ translateY: 0, scale: 1, opacity: 0.3 }}
+      animate={{
+        translateY: [-30, 30, -30],
+        scale: [1, 1.15, 1],
+        opacity: [0.3, 0.65, 0.3],
+      }}
+      transition={{
+        type: "timing",
+        duration: 8000,
+        loop: true,
+        delay,
+        repeatReverse: false,
+      }}
+      style={[
+        styles.orb,
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: color,
+          left: initialX,
+          top: initialY,
+        },
+      ]}
+    />
+  );
+}
+
+
+
+function SweepLine({ delay, top }: { delay: number; top: number }) {
+  return (
+    <MotiView
+      from={{ translateX: -width, opacity: 0 }}
+      animate={{ translateX: width, opacity: [0, 0.5, 0] }}
+      transition={{
+        type: "timing",
+        duration: 5500,
+        loop: true,
+        repeatReverse: false,
+        delay,
+      }}
+      style={[styles.sweepLine, { top }]}
+    />
+  );
+}
+
+function FormField({
+  label,
+  iconName,
+  value,
+  onChangeText,
+  secureTextEntry,
+  keyboardType,
+  autoCapitalize,
+  rightElement,
+}: {
+  label: string;
+  iconName: "mail" | "lock";
+  value: string;
+  onChangeText: (t: string) => void;
+  secureTextEntry?: boolean;
+  keyboardType?: any;
+  autoCapitalize?: any;
+  rightElement?: React.ReactNode;
+}) {
+  const [focused, setFocused] = useState(false);
+  const active = focused || value.length > 0;
+  const iconColor = focused ? ACCENT : TEXT_LIGHT;
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-
-      <Animated.ScrollView
-        showsVerticalScrollIndicator={false}
-        // contentContainerStyle is key for making flex content scrollable
-        contentContainerStyle={styles.scrollPadding}
-        style={{
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
+    <View style={styles.fieldContainer}>
+      <MotiView
+        animate={{
+          borderColor: focused ? BORDER_FOCUS : BORDER,
         }}
+        transition={{ type: "timing", duration: 200 }}
+        style={[styles.inputWrapper, focused && styles.inputWrapperFocused]}
       >
-        {/* Welcome Header */}
-        <View style={styles.welcomeSection}>
-          <Text style={styles.greeting}>Good Morning, @Dorji</Text>
-          <Text style={styles.subGreeting}>Get Stay Hotel Management</Text>
+       <View style={styles.inputIcon}>
+          {iconName === "mail" ? (
+            <Mail size={20} color={iconColor} strokeWidth={1.8} />
+          ) : (
+            <Lock size={20} color={iconColor} strokeWidth={1.8} />
+          )}
         </View>
 
-        {/* Stats Grid */}
-        <View style={styles.statsGrid}>
-          <StatusCard
-            icon="log-in-outline"
-            label="Check-in"
-            value="0/2"
-            color={COLORS.primaryBlue}
-            bgColor="#EDF2FF"
-          />
-          <StatusCard
-            icon="bed-outline"
-            label="Stay"
-            value="8"
-            color={COLORS.orangeChart}
-            bgColor="#FFF7ED"
-          />
-          <StatusCard
-            icon="log-out-outline"
-            label="Check-out"
-            value="4/4"
-            color={COLORS.pinkCheckOut}
-            bgColor="#FEF2F2"
-            isUrgent
-          />
-          <StatusCard
-            icon="checkmark-circle-outline"
-            label="Vacant"
-            value="2"
-            color={COLORS.tealCheck}
-            bgColor="#E6FFFA"
+        <View style={styles.inputInner}>
+          <MotiText
+            animate={{
+              translateY: active ? -10 : 0,
+              scale: active ? 0.82 : 1,
+            }}
+            transition={{ type: "spring", damping: 22, stiffness: 160 }}
+            style={[styles.floatLabel, { color: focused ? ACCENT : TEXT_MID }]}
+          >
+            {label}
+          </MotiText>
+          <TextInput
+            value={value}
+            onChangeText={onChangeText}
+            secureTextEntry={secureTextEntry}
+            keyboardType={keyboardType}
+            autoCapitalize={autoCapitalize ?? "none"}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            style={[styles.textInput, active && styles.textInputActive]}
+            selectionColor={ACCENT}
+            placeholderTextColor="transparent"
           />
         </View>
 
-        {/* Analytics Tabs */}
-        <View style={styles.analyticsHeader}>
-          <Text style={styles.sectionTitle}>Booking Analytics</Text>
-          <View style={styles.subTabContainer}>
-            {["Bookings", "Revenue", "Occupancy"].map((tab) => (
-              <TouchableOpacity
-                key={tab}
-                onPress={() => setActiveTab(tab)}
-                style={[
-                  styles.subTab,
-                  activeTab === tab && styles.subTabActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.subTabText,
-                    activeTab === tab && styles.subTabTextActive,
-                  ]}
-                >
-                  {tab}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.contentArea}>{renderAnalyticsContent()}</View>
-      </Animated.ScrollView>
+        {rightElement && <View style={styles.inputRight}>{rightElement}</View>}
+      </MotiView>
     </View>
   );
 }
 
-function StatusCard({ icon, label, value, color, bgColor, isUrgent }: any) {
+export default function LoginScreen() {
+  const router = useRouter();
+  const [status, setStatus] = useState<"idle" | "loading" | "success">("idle");
+  const [email, setEmail] = useState("jubin@gmail.com");
+  const [password, setPassword] = useState("password");
+  const [showPw, setShowPw] = useState(false);
+
+  const handleLogin = () => {
+    if (!email || !password) {
+      Alert.alert("Add Email and Password");
+      return;
+    }
+    setStatus("loading");
+    setTimeout(() => {
+      setStatus("success");
+      setTimeout(() => router.replace("/dashboard"), 1800);
+    }, 1500);
+  };
+
   return (
-    <View style={[styles.statCard, { borderLeftColor: color }]}>
-      <View style={[styles.statIconContainer, { backgroundColor: bgColor }]}>
-        <Ionicons name={icon} size={20} color={color} />
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
+      <StatusBar barStyle="dark-content" />
+
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <FloatingOrb
+          size={420}
+          color={`${ACCENT}12`}
+          delay={0}
+          initialX={-150}
+          initialY={-120}
+        />
+        <FloatingOrb
+          size={300}
+          color="#A78BFA10"
+          delay={2000}
+          initialX={width - 180}
+          initialY={height * 0.55}
+        />
+        <FloatingOrb
+          size={200}
+          color={`${ACCENT}08`}
+          delay={1200}
+          initialX={width * 0.2}
+          initialY={height * 0.75}
+        />
+        <SweepLine delay={0} top={height * 0.18} />
+        <SweepLine delay={2000} top={height * 0.42} />
+        <SweepLine delay={3800} top={height * 0.68} />
       </View>
-      <View style={styles.statTextContainer}>
-        <Text style={styles.statLabel}>{label}</Text>
-        <Text
-          style={[
-            styles.statValue,
-            { color: isUrgent ? color : COLORS.textMain },
-          ]}
+
+      <AnimatePresence>
+        {status === "success" && (
+          <MotiView
+            from={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 1.08 }}
+            transition={{ type: "timing", duration: 500 }}
+            style={styles.splashOverlay}
+          >
+            <MotiView
+              from={{ scale: 0.4, opacity: 1 }}
+              animate={{ scale: 3, opacity: 0 }}
+              transition={{
+                type: "timing",
+                duration: 2000,
+                loop: true,
+                repeatReverse: false,
+              }}
+              style={styles.waveCircle}
+            />
+            {/* Ripple 2 — staggered */}
+            <MotiView
+              from={{ scale: 0.4, opacity: 0.8 }}
+              animate={{ scale: 3, opacity: 0 }}
+              transition={{
+                type: "timing",
+                duration: 2000,
+                loop: true,
+                repeatReverse: false,
+                delay: 700,
+              }}
+              style={[
+                styles.waveCircle,
+                { borderColor: "rgba(167,139,250,0.5)" },
+              ]}
+            />
+
+            <MotiView
+              from={{ scale: 0.75, opacity: 0, translateY: 28 }}
+              animate={{ scale: 1, opacity: 1, translateY: 0 }}
+              transition={{ type: "spring", damping: 14 }}
+              style={styles.splashContent}
+            >
+              {/* Floating icon */}
+              <MotiView
+                animate={{ translateY: [0, -14, 0], opacity: [1, 0.72, 1] }}
+                transition={{
+                  translateY: { type: "timing", duration: 2000, loop: true },
+                  opacity: { type: "timing", duration: 1600, loop: true },
+                }}
+                style={styles.successIconOuter}
+              >
+                <CheckCircle2 size={60} color="#FFF" strokeWidth={1.8} />
+              </MotiView>
+
+              <MotiText
+                from={{ opacity: 0, scale: 0.88 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 350, type: "spring" }}
+                style={styles.successText}
+              >
+                Welcome Back
+              </MotiText>
+
+              <MotiText
+                from={{ opacity: 0 }}
+                animate={{ opacity: 0.65 }}
+                transition={{ delay: 650, type: "timing", duration: 500 }}
+                style={styles.successSub}
+              >
+                Taking you in…
+              </MotiText>
+            </MotiView>
+          </MotiView>
+        )}
+      </AnimatePresence>
+
+      <View style={styles.inner}>
+        <MotiView
+          from={{ opacity: 0, scale: 0.88 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", delay: 100, damping: 18 }}
+          style={styles.logoBadge}
         >
-          {value}
-        </Text>
+          <View style={styles.dot} />
+          <Text style={styles.logoText}>GETSTAY HOST</Text>
+        </MotiView>
+
+        {/* FIX: translateX instead of x */}
+        <MotiView
+          from={{ opacity: 0, translateX: -20 }}
+          animate={{ opacity: 1, translateX: 0 }}
+          transition={{ type: "spring", delay: 200, damping: 20 }}
+          style={styles.headerContainer}
+        >
+          <Text style={styles.title}>Login</Text>
+          <Text style={styles.subtitle}>
+            Enter your credentials to manage your property
+          </Text>
+        </MotiView>
+
+        <MotiView
+          from={{ opacity: 0, translateY: 24 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: "spring", delay: 360, damping: 18 }}
+        >
+          <FormField
+            label="Email Address"
+            iconName="mail"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+
+          <FormField
+            label="Password"
+            iconName="lock"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPw}
+            rightElement={
+              <TouchableOpacity
+                onPress={() => setShowPw((p) => !p)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={styles.eyeBtn}
+              >
+                {showPw ? (
+                  <EyeOff size={20} color={TEXT_LIGHT} strokeWidth={1.8} />
+                ) : (
+                  <Eye size={20} color={TEXT_LIGHT} strokeWidth={1.8} />
+                )}
+              </TouchableOpacity>
+            }
+          />
+
+          <MotiPressable
+            onPress={handleLogin}
+            disabled={status !== "idle"}
+            animate={({ pressed }) => {
+              "worklet";
+              return { scale: pressed ? 0.97 : 1, opacity: pressed ? 0.92 : 1 };
+            }}
+            style={styles.button}
+          >
+            {status === "loading" ? (
+              <MotiView
+                from={{ rotate: "0deg" }}
+                animate={{ rotate: "360deg" }}
+                transition={{
+                  loop: true,
+                  repeatReverse: false,
+                  type: "timing",
+                  duration: 900,
+                }}
+                style={styles.spinner}
+              />
+            ) : (
+              <View style={styles.buttonContent}>
+                <Text style={styles.buttonText}>Continue</Text>
+                <ArrowRight color="#FFF" size={20} strokeWidth={2.5} />
+              </View>
+            )}
+          </MotiPressable>
+
+          {/* Social row */}
+          <View style={styles.socialRow}>
+            {["G", "A", "𝕏"].map((lbl) => (
+              <MotiPressable
+                key={lbl}
+                animate={({ pressed }) => {
+                  "worklet";
+                  return { scale: pressed ? 0.91 : 1 };
+                }}
+                style={styles.socialBtn}
+              >
+                <Text style={styles.socialLabel}>{lbl}</Text>
+              </MotiPressable>
+            ))}
+          </View>
+        </MotiView>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
-  scrollPadding: {
-    paddingTop: 30,
-    paddingBottom: 40,
-    flexGrow: 1, // Ensures the scroll view can expand
-  },
-  welcomeSection: {
-    paddingHorizontal: 20,
-    marginBottom: 25,
-  },
-  greeting: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: COLORS.textMain,
-    letterSpacing: -0.5,
-  },
-  subGreeting: {
-    fontSize: 14,
-    color: COLORS.textSubtle,
-    marginTop: 4,
-  },
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-  },
-  statCard: {
-    backgroundColor: COLORS.white,
-    width: (width - 50) / 2,
-    padding: 16,
-    borderRadius: 18,
-    marginBottom: 15,
-    borderLeftWidth: 5,
-    flexDirection: "row",
-    alignItems: "center",
-    // Shadow/Elevation
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-  },
-  statIconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: "center",
+  container: { flex: 1, backgroundColor: BG, overflow: "hidden" },
+  splashOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: ACCENT,
+    zIndex: 9999,
     justifyContent: "center",
-    marginRight: 10,
-  },
-  statTextContainer: { flex: 1 },
-  statLabel: {
-    fontSize: 10,
-    color: COLORS.textSubtle,
-    textTransform: "uppercase",
-    fontWeight: "700",
-    letterSpacing: 0.5,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: "800",
-    marginTop: 2,
-  },
-  analyticsHeader: {
-    paddingHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 15,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: COLORS.textMain,
-    marginBottom: 12,
-  },
-  subTabContainer: {
-    flexDirection: "row",
-    backgroundColor: "#E5E7EB",
-    borderRadius: 12,
-    padding: 4,
-  },
-  subTab: {
-    flex: 1,
-    paddingVertical: 10,
     alignItems: "center",
-    borderRadius: 10,
+    elevation: 10,
+    height: 1000,
   },
-  subTabActive: {
-    backgroundColor: COLORS.white,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+  waveCircle: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    borderWidth: 8,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
-  subTabText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: COLORS.textSubtle,
+  splashContent: {
+    alignItems: "center",
+    zIndex: 2,
   },
-  subTabTextActive: {
-    color: COLORS.primaryBlue,
+  successIconOuter: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
   },
-  contentArea: {
-    paddingHorizontal: 20,
-    minHeight: 300, // Helps ensure there is enough space for the charts
+  successText: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#FFF",
+    textAlign: "center",
   },
+  successSub: {
+    fontSize: 16,
+    color: "#FFF",
+    marginTop: 12,
+    letterSpacing: 1.2,
+    fontWeight: "500",
+  },
+
+  // Ambient
+  orb: { position: "absolute" },
+  sweepLine: {
+    position: "absolute",
+    width: width * 2,
+    height: 1,
+    borderTopWidth: 1,
+    borderColor: `${ACCENT}22`,
+    borderStyle: "dashed",
+    left: -width * 0.5,
+  },
+
+  // Layout
+  inner: {
+    flex: 1,
+    paddingHorizontal: 32,
+    justifyContent: "center",
+  },
+
+  // Brand
+  logoBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: SURFACE,
+    alignSelf: "flex-start",
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 100,
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: BORDER,
+    shadowColor: ACCENT,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: ACCENT,
+    marginRight: 8,
+  },
+  logoText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: TEXT_DARK,
+    letterSpacing: 1.5,
+  },
+
+  // Heading
+  headerContainer: { marginBottom: 36 },
+  title: {
+    fontSize: 40,
+    fontWeight: "800",
+    color: TEXT_DARK,
+    letterSpacing: -1.2,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: TEXT_MID,
+    marginTop: 8,
+    lineHeight: 22,
+  },
+
+  // Input
+  fieldContainer: { marginBottom: 14 },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: BORDER,
+    paddingHorizontal: 16,
+    height: 66,
+    backgroundColor: SURFACE,
+  },
+  inputWrapperFocused: {
+    backgroundColor: "#FAFBFF",
+    shadowColor: ACCENT,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  inputIcon: { marginRight: 12 },
+  inputInner: { flex: 1, justifyContent: "center", height: "100%" },
+  floatLabel: {
+    position: "absolute",
+    fontSize: 15,
+    fontWeight: "500",
+    left: 0,
+    transformOrigin: "left center",
+  },
+  textInput: {
+    fontSize: 15,
+    color: TEXT_DARK,
+    fontWeight: "600",
+    height: 28,
+    paddingTop: 0,
+    paddingBottom: 0,
+    opacity: 0, // hidden until label has floated up
+  },
+  textInputActive: {
+    opacity: 1,
+    marginTop: 14, // pushes text below the floated label
+  },
+  inputRight: { marginLeft: 8 },
+  eyeBtn: { padding: 4 },
+
+  // Forgot
+  forgotBtn: { alignSelf: "flex-end", marginBottom: 22, marginTop: 2 },
+  forgotText: { color: ACCENT, fontWeight: "700", fontSize: 14 },
+
+  // Button
+  button: {
+    height: 62,
+    backgroundColor: ACCENT,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: ACCENT,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.32,
+    shadowRadius: 20,
+    elevation: 6,
+  },
+  buttonContent: { flexDirection: "row", alignItems: "center", gap: 10 },
+  buttonText: {
+    color: "#FFF",
+    fontSize: 17,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+
+  // Spinner
+  spinner: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 3,
+    borderColor: "#FFF",
+    borderTopColor: "transparent",
+  },
+
+  // Divider
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: BORDER },
+  dividerText: {
+    fontSize: 12,
+    color: TEXT_LIGHT,
+    marginHorizontal: 14,
+    fontWeight: "500",
+  },
+
+  // Social
+  socialRow: { flexDirection: "row", gap: 12 },
+  socialBtn: {
+    flex: 1,
+    height: 50,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: BORDER,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: SURFACE,
+  },
+  socialLabel: { fontSize: 16, color: TEXT_DARK, fontWeight: "700" },
 });
