@@ -174,8 +174,8 @@ function FormField({
 export default function LoginScreen() {
   const router = useRouter();
   const [status, setStatus] = useState<"idle" | "loading" | "success">("idle");
-  const [email, setEmail] = useState("jubinrohidas78@gmail.com");
-  const [password, setPassword] = useState("password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
 
   const { login } = useAuth();

@@ -236,7 +236,8 @@ export default function TodaysCheckIn() {
         >
           {/* ── Stats ── */}
           <View style={styles.statsRow}>
-            <StatItem label="Pending" value={String(counts.pending)} active />
+            <StatItem label="Total Rooms" value="12" />
+            <StatItem label="Pending" value={String(counts.pending)} />
             <StatItem label="Checked In" value={String(counts.arrived)} />
             <StatItem label="Cancelled" value={String(counts.cancelled)} />
           </View>
