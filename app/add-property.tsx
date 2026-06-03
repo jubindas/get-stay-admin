@@ -451,7 +451,7 @@ export default function AddProperty() {
       const formData = buildFormData(form, propertyImages);
 
       const response = await axios.post(
-        `${API_BASE_URL}/api/host/properties`,
+        `${API_BASE_URL}/api/host/properties/create`,
         formData,
         {
           headers: {

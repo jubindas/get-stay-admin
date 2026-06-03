@@ -660,27 +660,34 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.border,
     marginVertical: 8,
   },
+
   amountTotalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 4,
   },
+
   amountTotalLabel: { fontSize: 14, fontWeight: "700", color: COLORS.textMain },
+
   amountTotalValue: { fontSize: 15, fontWeight: "800", color: COLORS.primary },
+
   paidRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 2,
   },
+
   paidLabel: { fontSize: 12, color: COLORS.textSubtle },
+
   paidValue: { fontSize: 13, fontWeight: "700" },
 
-  // Contact row
+
   contactRow: {
     flexDirection: "row",
     gap: 10,
     marginTop: 12,
   },
+
   contactChip: {
     flex: 1,
     flexDirection: "row",
@@ -691,6 +698,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 8,
   },
+
   contactChipText: {
     fontSize: 12,
     color: COLORS.textSubtle,
@@ -720,7 +728,6 @@ const styles = StyleSheet.create({
   },
   actionButtonText: { fontSize: 14, fontWeight: "700", color: COLORS.primary },
 
-  // Loading / Error
   centered: {
     flex: 1,
     justifyContent: "center",
@@ -728,13 +735,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     gap: 12,
   },
+
   loadingText: { fontSize: 14, color: COLORS.textSubtle, marginTop: 8 },
+
   errorText: {
     fontSize: 14,
     color: COLORS.textSubtle,
     textAlign: "center",
     lineHeight: 22,
   },
+
   retryBtn: {
     marginTop: 8,
     backgroundColor: COLORS.primary,
@@ -742,15 +752,18 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
   },
+
   retryBtnText: { color: "#FFF", fontWeight: "700", fontSize: 14 },
 
-  // Empty
+
   emptyState: {
     alignItems: "center",
     paddingTop: 60,
     gap: 10,
   },
+
   emptyTitle: { fontSize: 16, fontWeight: "700", color: COLORS.textMain },
+
   emptySubtitle: {
     fontSize: 13,
     color: COLORS.textSubtle,

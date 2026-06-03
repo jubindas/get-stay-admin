@@ -4,18 +4,17 @@ import { AccountSwitcher } from "./AccountSwitcher";
 
 import { router, usePathname } from "expo-router";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 
 import {
   Animated,
   Dimensions,
   Easing,
-  Image,
   Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 
@@ -109,13 +108,6 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, setVisible }) => {
             onPress={() => navigate("/dashboard")}
           />
           <MenuItem
-            icon="plus-circle"
-            label="Add Rooms"
-            path="/add-rooms"
-            pathname={pathname}
-            onPress={() => navigate("/add-rooms")}
-          />
-          <MenuItem
             icon="home-plus"
             iconFamily="material"
             label="Add Properties"
@@ -124,26 +116,11 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, setVisible }) => {
             onPress={() => navigate("/add-property")}
           />
           <MenuItem
-            icon="grid"
-            label="Room Management"
-            path="/room-category"
+            icon="plus-circle"
+            label="Add Rooms"
+            path="/add-rooms"
             pathname={pathname}
-            onPress={() => navigate("/room-category")}
-          />
-          <MenuItem
-            icon="calendar"
-            label="Today's Check In"
-            path="/todays-check-in"
-            pathname={pathname}
-            onPress={() => navigate("/todays-check-in")}
-          />
-          <MenuItem
-            icon="cash-multiple"
-            iconFamily="material"
-            label="Manage rates"
-            path="/manage-rates"
-            pathname={pathname}
-            onPress={() => navigate("/manage-rates")}
+            onPress={() => navigate("/add-rooms")}
           />
 
           <MenuItem
@@ -154,6 +131,31 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, setVisible }) => {
             pathname={pathname}
             onPress={() => navigate("/book-rooms")}
           />
+
+
+          <MenuItem
+            icon="calendar"
+            label="Today's Check In"
+            path="/todays-check-in"
+            pathname={pathname}
+            onPress={() => navigate("/todays-check-in")}
+          />
+          <MenuItem
+            icon="grid"
+            label="Room Management"
+            path="/room-category"
+            pathname={pathname}
+            onPress={() => navigate("/room-category")}
+          />
+          <MenuItem
+            icon="cash-multiple"
+            iconFamily="material"
+            label="Manage rates"
+            path="/manage-rates"
+            pathname={pathname}
+            onPress={() => navigate("/manage-rates")}
+          />
+
           <Divider />
 
           <MenuItem
