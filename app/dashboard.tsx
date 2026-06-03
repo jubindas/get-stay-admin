@@ -1,3 +1,4 @@
+
 import { Ionicons } from "@expo/vector-icons";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -12,15 +13,20 @@ import {
   View,
 } from "react-native";
 
-// Components
-import BookingsChart from "@/components/BookingsChart";
+import BookingsChart from "../components/BookingsChart";
 
-import OccupancyCard from "@/components/OccupancyCard";
+import OccupancyCard from "../components/OccupancyCard";
 
-import Header from "@/components/Header";
-import RevenueChart from "@/components/RevenueChart";
+import Header from "../components/Header";
+
+import { useAuth } from "@/provider/AuthProvider";
+import axios from "axios";
+import { router } from "expo-router"; // Added for handling navigation to add property
+import RevenueChart from "../components/RevenueChart";
 
 const { width } = Dimensions.get("window");
+
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 const COLORS = {
   primaryBlue: "#003399",
@@ -35,10 +41,13 @@ const COLORS = {
 
 export default function ZenDashboard() {
   const [activeTab, setActiveTab] = useState("Bookings");
+  const [properties, setProperties] = useState<any[]>([]); // New state to hold properties
+  const [loading, setLoading] = useState(true); // Track loading status
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
-
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  const { token } = useAuth();
 
   useEffect(() => {
     Animated.parallel([
@@ -68,6 +77,33 @@ export default function ZenDashboard() {
         return null;
     }
   };
+
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(
+          `${API_BASE_URL}/api/host/properties`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+
+        // Safely set the array from response.data.properties
+        if (response.data && Array.isArray(response.data.properties)) {
+          setProperties(response.data.properties);
+        }
+      } catch (error) {
+        console.log("the error is", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProperties();
+  }, [token]);
 
   return (
     <View style={styles.container}>
@@ -113,32 +149,58 @@ export default function ZenDashboard() {
           />
         </View>
 
-        <View style={styles.analyticsHeader}>
-          <Text style={styles.sectionTitle}>Booking Analytics</Text>
-          <View style={styles.subTabContainer}>
-            {["Bookings", "Revenue", "Occupancy"].map((tab) => (
-              <TouchableOpacity
-                key={tab}
-                onPress={() => setActiveTab(tab)}
-                style={[
-                  styles.subTab,
-                  activeTab === tab && styles.subTabActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.subTabText,
-                    activeTab === tab && styles.subTabTextActive,
-                  ]}
-                >
-                  {tab}
-                </Text>
-              </TouchableOpacity>
-            ))}
+        {/* Dynamic Condition Checking: Show Analytics OR Empty State CTA */}
+        {!loading && properties.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="business-outline" size={32} color={COLORS.primaryBlue} />
+            </View>
+            <Text style={styles.emptyTitle}>No Properties Found</Text>
+            <Text style={styles.emptySubtitle}>
+              You havent added any listed rental spots yet. Add a property to start tracking your metrics.
+            </Text>
+            <TouchableOpacity
+              style={styles.addPropertyButton}
+              activeOpacity={0.85}
+              onPress={() => {
+                // Adjust route path if necessary to match your add property route layout
+                router.push("/add-property");
+              }}
+            >
+              <Ionicons name="add-circle-outline" size={20} color={COLORS.white} style={{ marginRight: 6 }} />
+              <Text style={styles.addPropertyButtonText}>Add First Property</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        ) : (
+          <>
+            <View style={styles.analyticsHeader}>
+              <Text style={styles.sectionTitle}>Booking Analytics</Text>
+              <View style={styles.subTabContainer}>
+                {["Bookings", "Revenue", "Occupancy"].map((tab) => (
+                  <TouchableOpacity
+                    key={tab}
+                    onPress={() => setActiveTab(tab)}
+                    style={[
+                      styles.subTab,
+                      activeTab === tab && styles.subTabActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.subTabText,
+                        activeTab === tab && styles.subTabTextActive,
+                      ]}
+                    >
+                      {tab}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
 
-        <View style={styles.contentArea}>{renderAnalyticsContent()}</View>
+            <View style={styles.contentArea}>{renderAnalyticsContent()}</View>
+          </>
+        )}
       </Animated.ScrollView>
     </View>
   );
@@ -192,7 +254,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: 5,
     flexDirection: "row",
     alignItems: "center",
-    // Shadow/Elevation
     elevation: 3,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -261,6 +322,68 @@ const styles = StyleSheet.create({
   },
   contentArea: {
     paddingHorizontal: 20,
-    minHeight: 300, // Helps ensure there is enough space for the charts
+    minHeight: 300,
+  },
+
+  // Premium Empty State Styling
+  emptyStateContainer: {
+    backgroundColor: COLORS.white,
+    marginHorizontal: 20,
+    marginTop: 25,
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+  },
+  emptyIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: COLORS.textMain,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: COLORS.textSubtle,
+    lineHeight: 20,
+    textAlign: "center",
+    marginBottom: 24,
+    paddingHorizontal: 10,
+  },
+  addPropertyButton: {
+    flexDirection: "row",
+    backgroundColor: COLORS.primaryBlue,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 3,
+    shadowColor: COLORS.primaryBlue,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  addPropertyButtonText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
 });
+

@@ -1,4 +1,4 @@
-import Header from "@/components/Header";
+import Header from "../components/Header";
 import React, { useMemo, useRef, useState } from "react";
 
 import {

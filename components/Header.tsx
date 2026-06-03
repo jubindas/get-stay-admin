@@ -1,5 +1,7 @@
 import { Feather } from "@expo/vector-icons";
+
 import React, { useState } from "react";
+
 import {
   StatusBar,
   StyleSheet,
@@ -8,9 +10,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
 import DrawerMenu from "./DrawerMenu";
 
 const Header = () => {
+
   const [drawerVisible, setDrawerVisible] = useState(false);
 
   return (

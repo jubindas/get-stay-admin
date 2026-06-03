@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+
 import { Platform, StyleSheet, Text, View } from "react-native";
 
 const OccupancyCard = ({
@@ -8,7 +9,9 @@ const OccupancyCard = ({
   lastUpdated = "2m ago",
 }) => {
   const { percentage, status, colors } = useMemo(() => {
+
     const ratio = Math.min(current / max, 1);
+    
     const pct = Math.round(ratio * 100);
 
     if (ratio > 0.85)

@@ -1,14 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
+
 import {
   Animated,
-  Dimensions,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 
-const { width } = Dimensions.get("window");
 
 const BOOKING_DATA: any = {
   Day: {
@@ -40,9 +39,9 @@ const COLORS = {
 
 export default function BookingsChart() {
   const [filter, setFilter] = useState("Day");
+  
   const current = BOOKING_DATA[filter];
   
-  // Calculate total for the summary section
   const totalBookings = current.vals.reduce((a: number, b: number) => a + b, 0);
 
   return (

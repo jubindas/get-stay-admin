@@ -1,3 +1,4 @@
+import { useAuth } from "@/provider/AuthProvider";
 import { useRouter } from "expo-router";
 
 import {
@@ -28,9 +29,7 @@ import {
   View,
 } from "react-native";
 
-
 const { width, height } = Dimensions.get("window");
-
 
 const ACCENT = "#4F6EF7";
 const BG = "#F8FAFF";
@@ -40,8 +39,6 @@ const BORDER_FOCUS = "#4F6EF7";
 const TEXT_DARK = "#0F172A";
 const TEXT_MID = "#64748B";
 const TEXT_LIGHT = "#94A3B8";
-
-
 
 function FloatingOrb({
   size,
@@ -85,8 +82,6 @@ function FloatingOrb({
     />
   );
 }
-
-
 
 function SweepLine({ delay, top }: { delay: number; top: number }) {
   return (
@@ -137,7 +132,7 @@ function FormField({
         transition={{ type: "timing", duration: 200 }}
         style={[styles.inputWrapper, focused && styles.inputWrapperFocused]}
       >
-       <View style={styles.inputIcon}>
+        <View style={styles.inputIcon}>
           {iconName === "mail" ? (
             <Mail size={20} color={iconColor} strokeWidth={1.8} />
           ) : (
@@ -179,20 +174,43 @@ function FormField({
 export default function LoginScreen() {
   const router = useRouter();
   const [status, setStatus] = useState<"idle" | "loading" | "success">("idle");
-  const [email, setEmail] = useState("jubin@gmail.com");
+  const [email, setEmail] = useState("jubinrohidas78@gmail.com");
   const [password, setPassword] = useState("password");
   const [showPw, setShowPw] = useState(false);
 
-  const handleLogin = () => {
+  const { login } = useAuth();
+
+  const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Add Email and Password");
+      Alert.alert(
+        "Missing Information",
+        "Please enter your email and password.",
+      );
       return;
     }
-    setStatus("loading");
-    setTimeout(() => {
+
+    try {
+      setStatus("loading");
+
+      await login(email, password);
+
       setStatus("success");
-      setTimeout(() => router.replace("/dashboard"), 1800);
-    }, 1500);
+
+      setTimeout(() => {
+        router.replace("/dashboard");
+      }, 1800);
+    } catch (error: any) {
+      setStatus("idle");
+
+      Alert.alert(
+        "Login Failed",
+        error?.response?.data?.error || "Invalid email or password.",
+      );
+    }
+  };
+
+  const handleRegisterNavigation = () => {
+    router.push("/register");
   };
 
   return (
@@ -409,6 +427,22 @@ export default function LoginScreen() {
               </MotiPressable>
             ))}
           </View>
+
+          {/* REGISTER NOW OPTION */}
+          <MotiPressable
+            onPress={handleRegisterNavigation}
+            animate={({ pressed }) => {
+              "worklet";
+              return {
+                scale: pressed ? 0.98 : 1,
+                opacity: pressed ? 0.8 : 1,
+              };
+            }}
+            style={styles.registerContainer}
+          >
+            <Text style={styles.registerTextLeft}>Dont have an account? </Text>
+            <Text style={styles.registerTextLink}>Register now</Text>
+          </MotiPressable>
         </MotiView>
       </View>
     </KeyboardAvoidingView>
@@ -625,7 +659,7 @@ const styles = StyleSheet.create({
   },
 
   // Social
-  socialRow: { flexDirection: "row", gap: 12 },
+  socialRow: { flexDirection: "row", gap: 12, marginBottom: 24 },
   socialBtn: {
     flex: 1,
     height: 50,
@@ -637,4 +671,23 @@ const styles = StyleSheet.create({
     backgroundColor: SURFACE,
   },
   socialLabel: { fontSize: 16, color: TEXT_DARK, fontWeight: "700" },
+
+  // Register Redirect
+  registerContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  registerTextLeft: {
+    fontSize: 14,
+    color: TEXT_MID,
+    fontWeight: "500",
+  },
+  registerTextLink: {
+    fontSize: 14,
+    color: ACCENT,
+    fontWeight: "700",
+  },
 });

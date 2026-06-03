@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+
 import {
   Animated,
   LayoutAnimation,
@@ -9,6 +10,7 @@ import {
   UIManager,
   View,
 } from "react-native";
+
 import { Circle, Defs, LinearGradient, Stop, Svg } from "react-native-svg";
 
 if (
@@ -32,11 +34,15 @@ const COLORS = {
 };
 
 const REVENUE_DATA = [4500, 7200, 3800, 9100, 5600, 8400, 10500];
+
 const LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function RevenueChart() {
+
   const [focusIndex, setFocusIndex] = useState(REVENUE_DATA.length - 1);
+
   const totalRevenue = REVENUE_DATA.reduce((a, b) => a + b, 0);
+
   const maxVal = Math.max(...REVENUE_DATA);
 
   const handleDayPress = (index: number) => {

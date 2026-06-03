@@ -1,6 +1,11 @@
-import { Feather } from "@expo/vector-icons";
+
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons"; // 1. Added MaterialCommunityIcons import
+import { AccountSwitcher } from "./AccountSwitcher";
+
 import { router, usePathname } from "expo-router";
-import React, { useEffect, useRef } from "react";
+
+import React, { useEffect, useRef, useState } from "react";
+
 import {
   Animated,
   Dimensions,
@@ -13,12 +18,19 @@ import {
   View,
 } from "react-native";
 
+
+
+
 interface DrawerMenuProps {
   visible: boolean;
   setVisible: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const { width, height } = Dimensions.get("window");
+
+
+
+const { width } = Dimensions.get("window");
+
 const DRAWER_WIDTH = width * 0.78;
 
 const COLORS = {
@@ -33,7 +45,6 @@ const COLORS = {
 const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, setVisible }) => {
   const pathname = usePathname();
 
-  // New Animation Values for the "Scale/Fade" effect
   const animValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -51,30 +62,26 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, setVisible }) => {
       return;
     }
     setVisible(false);
-    setTimeout(() => {
-      router.replace(path as any);
-    }, 150);
+    setTimeout(() => router.replace(path as any), 150);
   };
 
-  // Interpolations for the Scale effect
   const scale = animValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.85, 1], // Starts slightly smaller
+    outputRange: [0.85, 1],
   });
 
   const opacity = animValue.interpolate({
     inputRange: [0, 0.5, 1],
-    outputRange: [0, 0, 1], // Quick fade in towards the end
+    outputRange: [0, 0, 1],
   });
 
   const translateX = animValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [-DRAWER_WIDTH, 0], // Still moves, but combined with scale it looks "poppy"
+    outputRange: [-DRAWER_WIDTH, 0],
   });
 
   return (
     <View style={styles.container} pointerEvents={visible ? "auto" : "none"}>
-      {/* OVERLAY */}
       <Animated.View style={[styles.overlay, { opacity: animValue }]}>
         <TouchableOpacity
           style={{ flex: 1 }}
@@ -83,29 +90,14 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, setVisible }) => {
         />
       </Animated.View>
 
-      {/* DRAWER BODY with SCALE & FADE */}
       <Animated.View
         style={[
           styles.drawer,
-          {
-            opacity: opacity,
-            transform: [{ translateX: translateX }, { scale: scale }],
-          },
+          { opacity, transform: [{ translateX }, { scale }] },
         ]}
       >
         <View style={styles.header}>
-          <View style={styles.profileRow}>
-            <View style={styles.avatarContainer}>
-              <Image
-                source={require("../assets/img/logo.png")}
-                style={styles.avatarImage}
-              />
-            </View>
-            <View style={{ marginLeft: 16 }}>
-              <Text style={styles.userName}>Zubeens Hotel</Text>
-              <Text style={styles.userRole}>Property Manager</Text>
-            </View>
-          </View>
+          <AccountSwitcher />
         </View>
 
         <View style={styles.menuBlock}>
@@ -124,6 +116,14 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, setVisible }) => {
             onPress={() => navigate("/add-rooms")}
           />
           <MenuItem
+            icon="home-plus"
+            iconFamily="material"
+            label="Add Properties"
+            path="/add-property"
+            pathname={pathname}
+            onPress={() => navigate("/add-property")}
+          />
+          <MenuItem
             icon="grid"
             label="Room Management"
             path="/room-category"
@@ -137,7 +137,23 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, setVisible }) => {
             pathname={pathname}
             onPress={() => navigate("/todays-check-in")}
           />
+          <MenuItem
+            icon="cash-multiple"
+            iconFamily="material"
+            label="Manage rates"
+            path="/manage-rates"
+            pathname={pathname}
+            onPress={() => navigate("/manage-rates")}
+          />
 
+          <MenuItem
+            icon="bed"
+            iconFamily="material"
+            label="Book Rooms"
+            path="/book-rooms"
+            pathname={pathname}
+            onPress={() => navigate("/book-rooms")}
+          />
           <Divider />
 
           <MenuItem
@@ -164,8 +180,15 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, setVisible }) => {
   );
 };
 
-const MenuItem = ({ icon, label, path, pathname, onPress, isLogout }: any) => {
+// 2. Updated MenuItem to accept and switch between Feather and Material icon sets
+const MenuItem = ({ icon, label, path, pathname, onPress, isLogout, iconFamily }: any) => {
   const isActive = pathname === path;
+  const iconColor = isLogout
+    ? COLORS.danger
+    : isActive
+      ? COLORS.activeText
+      : COLORS.inactiveText;
+
   return (
     <TouchableOpacity
       style={[styles.menuItem, isActive && styles.activeMenuItem]}
@@ -173,17 +196,14 @@ const MenuItem = ({ icon, label, path, pathname, onPress, isLogout }: any) => {
       activeOpacity={0.6}
     >
       {isActive && <View style={styles.activeBar} />}
-      <Feather
-        name={icon}
-        size={22}
-        color={
-          isLogout
-            ? COLORS.danger
-            : isActive
-              ? COLORS.activeText
-              : COLORS.inactiveText
-        }
-      />
+
+      {/* Dynamic toggle between families */}
+      {iconFamily === "material" ? (
+        <MaterialCommunityIcons name={icon} size={22} color={iconColor} />
+      ) : (
+        <Feather name={icon} size={22} color={iconColor} />
+      )}
+
       <Text
         style={[
           styles.menuText,
@@ -222,9 +242,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 20,
       },
-      android: {
-        elevation: 24,
-      },
+      android: { elevation: 24 },
     }),
   },
   header: {
@@ -233,35 +251,6 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
     paddingHorizontal: 20,
     borderBottomRightRadius: 32,
-  },
-  profileRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  avatarContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    padding: 2,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 30,
-    resizeMode: "cover",
-  },
-  userName: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "800",
-  },
-  userRole: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 13,
-    marginTop: 2,
   },
   menuBlock: {
     flex: 1,
@@ -311,3 +300,4 @@ const styles = StyleSheet.create({
 });
 
 export default DrawerMenu;
+
