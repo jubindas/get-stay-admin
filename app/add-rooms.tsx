@@ -2,6 +2,7 @@ import axios from "axios";
 import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useState } from "react";
 import Header from "../components/Header";
+import AlertPopUp, { AlertType } from "@/components/AlertPopUp";
 import { useAuth } from "@/provider/AuthProvider";
 import {
   Alert,
@@ -35,6 +36,24 @@ import {
 } from "lucide-react-native";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+
+interface AlertState {
+  visible: boolean;
+  type: AlertType;
+  title: string;
+  message: string;
+  primaryLabel?: string;
+  secondaryLabel?: string;
+  onPrimary?: () => void;
+  onSecondary?: () => void;
+}
+
+const ALERT_HIDDEN: AlertState = {
+  visible: false,
+  type: "info",
+  title: "",
+  message: "",
+};
 
 const COLORS = {
   primary: "#4F6EF7",
@@ -214,11 +233,11 @@ function TimePickerField({ label, value, onChange, icon: Icon }: any) {
   );
 }
 
-function ImagePickerField({ label, images, onChange, optional }: any) {
+function ImagePickerField({ label, images, onChange, optional, onError }: any) {
   const pick = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission required", "Allow access to your photo library.");
+      if (onError) onError("Allow access to your photo library.");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -342,7 +361,11 @@ function CustomDropdown({ items, value, onChange, loading, label, icon: Icon, pl
 export default function AddRooms() {
   const { token } = useAuth();
   
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [alert, setAlert] = useState<AlertState>(ALERT_HIDDEN);
+  const dismissAlert = () => setAlert((a) => ({ ...a, visible: false }));
+  const showAlert = (config: Omit<AlertState, "visible">) =>
+    setAlert({ ...config, visible: true });
+
   const [propertyId, setPropertyId] = useState<string>("");
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
@@ -397,7 +420,13 @@ export default function AddRooms() {
 
   const handleSubmit = async () => {
     if (!propertyId) {
-      Alert.alert("Validation Error", "Please select a property first.");
+      showAlert({
+        type: "warning",
+        title: "Validation Error",
+        message: "Please select a property first.",
+        primaryLabel: "Got it",
+        onPrimary: dismissAlert,
+      });
       return;
     }
 
@@ -421,12 +450,24 @@ export default function AddRooms() {
       }));
 
     if (roomsData.length === 0) {
-      Alert.alert("Validation Error", "Please fill out at least one room (Category, Capacity, Base Price).");
+      showAlert({
+        type: "warning",
+        title: "Validation Error",
+        message: "Please fill out at least one room (Category, Capacity, Base Price).",
+        primaryLabel: "Got it",
+        onPrimary: dismissAlert,
+      });
       return;
     }
 
     if (roomImages.length === 0) {
-      Alert.alert("Validation Error", "Please provide at least one room image.");
+      showAlert({
+        type: "warning",
+        title: "Validation Error",
+        message: "Please provide at least one room image.",
+        primaryLabel: "Got it",
+        onPrimary: dismissAlert,
+      });
       return;
     }
 
@@ -452,12 +493,26 @@ export default function AddRooms() {
           },
         }
       );
-      setShowSuccess(true);
-      setRooms([{ ...INITIAL_ROOM }]);
-      setRoomImages([]);
-      setPropertyId("");
+      showAlert({
+        type: "success",
+        title: "Rooms Added!",
+        message: "Your rooms have been successfully configured and added to the property.",
+        primaryLabel: "Continue",
+        onPrimary: () => {
+          setRooms([{ ...INITIAL_ROOM }]);
+          setRoomImages([]);
+          setPropertyId("");
+          dismissAlert();
+        }
+      });
     } catch (error: any) {
-      Alert.alert("Error", error?.response?.data?.error || error?.response?.data?.message || error?.message || "Failed to add rooms.");
+      showAlert({
+        type: "error",
+        title: "Error",
+        message: error?.response?.data?.error || error?.response?.data?.message || error?.message || "Failed to add rooms.",
+        primaryLabel: "OK",
+        onPrimary: dismissAlert,
+      });
     } finally {
       setLoading(false);
     }
@@ -495,6 +550,13 @@ export default function AddRooms() {
             label="Room Images (Applies to all)"
             images={roomImages}
             onChange={setRoomImages}
+            onError={(msg: string) => showAlert({
+              type: "warning",
+              title: "Permission required",
+              message: msg,
+              primaryLabel: "OK",
+              onPrimary: dismissAlert,
+            })}
           />
         </Section>
 
@@ -587,23 +649,17 @@ export default function AddRooms() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Success Modal */}
-      <Modal visible={showSuccess} transparent animationType="fade">
-        <View style={styles.successModalOverlay}>
-          <View style={styles.successModalContent}>
-            <View style={styles.successIconWrapper}>
-              <Check size={32} color={COLORS.success} strokeWidth={3} />
-            </View>
-            <Text style={styles.successTitle}>Rooms Added!</Text>
-            <Text style={styles.successMessage}>
-              Your rooms have been successfully configured and added to the property.
-            </Text>
-            <TouchableOpacity style={styles.successButton} onPress={() => setShowSuccess(false)} activeOpacity={0.8}>
-              <Text style={styles.successButtonText}>Continue</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <AlertPopUp
+        visible={alert.visible}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        primaryLabel={alert.primaryLabel}
+        secondaryLabel={alert.secondaryLabel}
+        onPrimary={alert.onPrimary}
+        onSecondary={alert.onSecondary}
+        onDismiss={dismissAlert}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -814,36 +870,4 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   addRoomBtnText: { fontSize: 15, color: COLORS.primary, fontWeight: "700" },
-
-  successModalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  successModalContent: {
-    backgroundColor: COLORS.card,
-    borderRadius: 28,
-    padding: 32,
-    width: "85%",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.15,
-    shadowRadius: 30,
-    elevation: 20,
-  },
-  successIconWrapper: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: COLORS.successLight,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  successTitle: { fontSize: 22, fontWeight: "800", color: COLORS.textActive, marginBottom: 12 },
-  successMessage: { fontSize: 15, color: COLORS.textMuted, textAlign: "center", marginBottom: 30, lineHeight: 22 },
-  successButton: { backgroundColor: COLORS.success, paddingVertical: 16, paddingHorizontal: 40, borderRadius: 14, width: "100%" },
-  successButtonText: { color: "#fff", fontSize: 16, fontWeight: "700", textAlign: "center" },
 });

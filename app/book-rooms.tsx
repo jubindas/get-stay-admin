@@ -21,6 +21,7 @@ import {
 } from "react-native";
 
 import Header from "../components/Header";
+import AlertPopUp, { AlertType } from "@/components/AlertPopUp";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -28,9 +29,31 @@ const COLORS = {
   textSecondary: "#64748B",
 };
 
+interface AlertState {
+  visible: boolean;
+  type: AlertType;
+  title: string;
+  message: string;
+  primaryLabel?: string;
+  secondaryLabel?: string;
+  onPrimary?: () => void;
+  onSecondary?: () => void;
+}
+
+const ALERT_HIDDEN: AlertState = {
+  visible: false,
+  type: "info",
+  title: "",
+  message: "",
+};
+
 export default function BookRooms() {
   const { token } = useAuth();
-
+  
+  const [alert, setAlert] = useState<AlertState>(ALERT_HIDDEN);
+  const dismissAlert = () => setAlert((a) => ({ ...a, visible: false }));
+  const showAlert = (config: Omit<AlertState, "visible">) =>
+    setAlert({ ...config, visible: true });
 
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +90,13 @@ export default function BookRooms() {
       setProperties(response.data.properties || []);
     } catch (error) {
       console.error("Error fetching properties:", error);
-      Alert.alert("Error", "Failed to load properties.");
+      showAlert({
+        type: "error",
+        title: "Error",
+        message: "Failed to load properties.",
+        primaryLabel: "OK",
+        onPrimary: dismissAlert,
+      });
     } finally {
       setLoading(false);
     }
@@ -88,17 +117,26 @@ export default function BookRooms() {
     if (!selectedRoomId) missingFields.push("Room Selection");
 
     if (missingFields.length) {
-      Alert.alert(
-        "Missing Information",
-        `Please provide: ${missingFields.join(", ")}.`
-      );
+      showAlert({
+        type: "warning",
+        title: "Missing Information",
+        message: `Please provide: ${missingFields.join(", ")}.`,
+        primaryLabel: "Got it",
+        onPrimary: dismissAlert,
+      });
       return;
     }
 
     const checkIn = new Date(checkInDate);
     const checkOut = new Date(checkOutDate);
     if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
-      Alert.alert("Invalid Dates", "Please select valid check-in and check-out dates.");
+      showAlert({
+        type: "warning",
+        title: "Invalid Dates",
+        message: "Please select valid check-in and check-out dates.",
+        primaryLabel: "Got it",
+        onPrimary: dismissAlert,
+      });
       return;
     }
 
@@ -128,17 +166,25 @@ export default function BookRooms() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      Alert.alert("Success", "Walk-in Booking registered successfully!", [
-        { text: "OK", onPress: resetForm },
-      ]);
+      showAlert({
+        type: "success",
+        title: "Success",
+        message: "Walk-in Booking registered successfully!",
+        primaryLabel: "OK",
+        onPrimary: () => {
+          resetForm();
+          dismissAlert();
+        },
+      });
     } catch (error: any) {
       console.error(error?.response?.data || error.message);
-      Alert.alert(
-        "Booking Failed",
-        error?.response?.data?.error ||
-        error?.response?.data?.message ||
-        "An error occurred."
-      );
+      showAlert({
+        type: "error",
+        title: "Booking Failed",
+        message: error?.response?.data?.error || error?.response?.data?.message || "An error occurred.",
+        primaryLabel: "OK",
+        onPrimary: dismissAlert,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -412,6 +458,18 @@ export default function BookRooms() {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      <AlertPopUp
+        visible={alert.visible}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        primaryLabel={alert.primaryLabel}
+        secondaryLabel={alert.secondaryLabel}
+        onPrimary={alert.onPrimary}
+        onSecondary={alert.onSecondary}
+        onDismiss={dismissAlert}
+      />
     </View>
   );
 }

@@ -5,6 +5,7 @@ import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useState } from "react";
 
 import Header from "../components/Header";
+import AlertPopUp, { AlertType } from "@/components/AlertPopUp";
 
 import * as Location from "expo-location";
 
@@ -26,6 +27,24 @@ import {
 } from "react-native";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+
+interface AlertState {
+  visible: boolean;
+  type: AlertType;
+  title: string;
+  message: string;
+  primaryLabel?: string;
+  secondaryLabel?: string;
+  onPrimary?: () => void;
+  onSecondary?: () => void;
+}
+
+const ALERT_HIDDEN: AlertState = {
+  visible: false,
+  type: "info",
+  title: "",
+  message: "",
+};
 
 interface Category {
   id: string;
@@ -120,14 +139,11 @@ function buildFormData(form: PropertyForm, propertyImages: string[]): FormData {
 async function getCurrentLocation(): Promise<{
   lat: string;
   lng: string;
+  error?: string;
 } | null> {
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== "granted") {
-    Alert.alert(
-      "Permission Denied",
-      "Allow location access to auto-fill coordinates.",
-    );
-    return null;
+    return { lat: "", lng: "", error: "Allow location access to auto-fill coordinates." };
   }
   const location = await Location.getCurrentPositionAsync({
     accuracy: Location.Accuracy.High,
@@ -257,6 +273,7 @@ interface ImagePickerFieldProps {
   images: string[];
   onChange: (images: string[]) => void;
   optional?: boolean;
+  onError?: (msg: string) => void;
 }
 
 function ImagePickerField({
@@ -264,11 +281,12 @@ function ImagePickerField({
   images,
   onChange,
   optional,
+  onError,
 }: ImagePickerFieldProps) {
   const pick = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission required", "Allow access to your photo library.");
+      if (onError) onError("Allow access to your photo library.");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -383,6 +401,11 @@ function Section({
 
 export default function AddProperty() {
 
+  const [alert, setAlert] = useState<AlertState>(ALERT_HIDDEN);
+  const dismissAlert = () => setAlert((a) => ({ ...a, visible: false }));
+  const showAlert = (config: Omit<AlertState, "visible">) =>
+    setAlert({ ...config, visible: true });
+
   const [form, setForm] = useState<PropertyForm>(INITIAL_FORM);
 
   const [propertyImages, setPropertyImages] = useState<string[]>([]);
@@ -402,7 +425,15 @@ export default function AddProperty() {
     setLocationLoading(true);
     try {
       const coords = await getCurrentLocation();
-      if (coords) {
+      if (coords?.error) {
+        showAlert({
+          type: "error",
+          title: "Permission Denied",
+          message: coords.error,
+          primaryLabel: "OK",
+          onPrimary: dismissAlert,
+        });
+      } else if (coords) {
         setForm((prev) => ({
           ...prev,
           latitude: coords.lat,
@@ -422,7 +453,13 @@ export default function AddProperty() {
           setCategories(res.data.categories);
         }
       } catch {
-        Alert.alert("Error", "Failed to load categories.");
+        showAlert({
+          type: "error",
+          title: "Error",
+          message: "Failed to load categories.",
+          primaryLabel: "OK",
+          onPrimary: dismissAlert,
+        });
       } finally {
         setCategoriesLoading(false);
       }
@@ -441,7 +478,13 @@ export default function AddProperty() {
     const error = validate(form, propertyImages);
 
     if (error) {
-      Alert.alert("Validation Error", error);
+      showAlert({
+        type: "warning",
+        title: "Validation Error",
+        message: error,
+        primaryLabel: "Got it",
+        onPrimary: dismissAlert,
+      });
       return;
     }
 
@@ -463,15 +506,17 @@ export default function AddProperty() {
 
       console.log("Property Created:", response.data);
 
-      Alert.alert("Success", "Property created successfully!", [
-        {
-          text: "OK",
-          onPress: () => {
-            setForm(INITIAL_FORM);
-            setPropertyImages([]);
-          },
+      showAlert({
+        type: "success",
+        title: "Success",
+        message: "Property created successfully!",
+        primaryLabel: "OK",
+        onPrimary: () => {
+          setForm(INITIAL_FORM);
+          setPropertyImages([]);
+          dismissAlert();
         },
-      ]);
+      });
     } catch (error: any) {
       if (axios.isAxiosError(error)) {
         console.log("🚨 Axios Error");
@@ -507,12 +552,13 @@ export default function AddProperty() {
         console.log("Unexpected Error:", error);
       }
 
-      Alert.alert(
-        "Error",
-        error?.response?.data?.message ||
-        error?.message ||
-        "Something went wrong.",
-      );
+      showAlert({
+        type: "error",
+        title: "Error",
+        message: error?.response?.data?.message || error?.message || "Something went wrong.",
+        primaryLabel: "Retry",
+        onPrimary: dismissAlert,
+      });
     } finally {
       setLoading(false);
     }
@@ -557,6 +603,13 @@ export default function AddProperty() {
             label="Property Images"
             images={propertyImages}
             onChange={setPropertyImages}
+            onError={(msg) => showAlert({
+              type: "warning",
+              title: "Permission required",
+              message: msg,
+              primaryLabel: "OK",
+              onPrimary: dismissAlert,
+            })}
           />
         </Section>
 
@@ -648,6 +701,18 @@ export default function AddProperty() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <AlertPopUp
+        visible={alert.visible}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        primaryLabel={alert.primaryLabel}
+        secondaryLabel={alert.secondaryLabel}
+        onPrimary={alert.onPrimary}
+        onSecondary={alert.onSecondary}
+        onDismiss={dismissAlert}
+      />
     </KeyboardAvoidingView>
   );
 }
