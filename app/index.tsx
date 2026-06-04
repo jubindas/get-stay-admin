@@ -11,13 +11,11 @@ import {
 } from "lucide-react-native";
 
 import { AnimatePresence, MotiText, MotiView } from "moti";
-
 import { MotiPressable } from "moti/interactions";
 
 import React, { useState } from "react";
 
 import {
-  Alert,
   Dimensions,
   KeyboardAvoidingView,
   Platform,
@@ -28,6 +26,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import AlertPopUp, { AlertType } from "@/components/AlertPopUp"; // adjust path as needed
 
 const { width, height } = Dimensions.get("window");
 
@@ -40,6 +40,26 @@ const TEXT_DARK = "#0F172A";
 const TEXT_MID = "#64748B";
 const TEXT_LIGHT = "#94A3B8";
 
+// ─── Alert State Helper ────────────────────────────────────────────────────────
+interface AlertState {
+  visible: boolean;
+  type: AlertType;
+  title: string;
+  message: string;
+  primaryLabel?: string;
+  secondaryLabel?: string;
+  onPrimary?: () => void;
+  onSecondary?: () => void;
+}
+
+const ALERT_HIDDEN: AlertState = {
+  visible: false,
+  type: "info",
+  title: "",
+  message: "",
+};
+
+// ─── Ambient background pieces ────────────────────────────────────────────────
 function FloatingOrb({
   size,
   color,
@@ -100,6 +120,7 @@ function SweepLine({ delay, top }: { delay: number; top: number }) {
   );
 }
 
+// ─── Form Field ───────────────────────────────────────────────────────────────
 function FormField({
   label,
   iconName,
@@ -126,9 +147,7 @@ function FormField({
   return (
     <View style={styles.fieldContainer}>
       <MotiView
-        animate={{
-          borderColor: focused ? BORDER_FOCUS : BORDER,
-        }}
+        animate={{ borderColor: focused ? BORDER_FOCUS : BORDER }}
         transition={{ type: "timing", duration: 200 }}
         style={[styles.inputWrapper, focused && styles.inputWrapperFocused]}
       >
@@ -142,10 +161,7 @@ function FormField({
 
         <View style={styles.inputInner}>
           <MotiText
-            animate={{
-              translateY: active ? -10 : 0,
-              scale: active ? 0.82 : 1,
-            }}
+            animate={{ translateY: active ? -10 : 0, scale: active ? 0.82 : 1 }}
             transition={{ type: "spring", damping: 22, stiffness: 160 }}
             style={[styles.floatLabel, { color: focused ? ACCENT : TEXT_MID }]}
           >
@@ -171,47 +187,82 @@ function FormField({
   );
 }
 
+// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function LoginScreen() {
   const router = useRouter();
+  const { login } = useAuth();
+
   const [status, setStatus] = useState<"idle" | "loading" | "success">("idle");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
 
-  const { login } = useAuth();
+  // Single alert state drives the AlertPopUp
+  const [alert, setAlert] = useState<AlertState>(ALERT_HIDDEN);
 
+  const dismissAlert = () => setAlert((a) => ({ ...a, visible: false }));
+
+  const showAlert = (config: Omit<AlertState, "visible">) =>
+    setAlert({ ...config, visible: true });
+
+  // ─── Handlers ───────────────────────────────────────────────────────────────
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert(
-        "Missing Information",
-        "Please enter your email and password.",
-      );
+      showAlert({
+        type: "warning",
+        title: "Missing Information",
+        message: "Please enter your email and password before continuing.",
+        primaryLabel: "Got it",
+        onPrimary: dismissAlert,
+      });
       return;
     }
 
     try {
       setStatus("loading");
-
       await login(email, password);
-
       setStatus("success");
-
       setTimeout(() => {
         router.replace("/dashboard");
       }, 1800);
     } catch (error: any) {
       setStatus("idle");
-
-      Alert.alert(
-        "Login Failed",
-        error?.response?.data?.error || "Invalid email or password.",
-      );
+      showAlert({
+        type: "error",
+        title: "Login Failed",
+        message:
+          error?.response?.data?.error ||
+          "Invalid email or password. Please try again.",
+        primaryLabel: "Retry",
+        secondaryLabel: "Forgot password?",
+        onPrimary: dismissAlert,
+        onSecondary: () => {
+          dismissAlert();
+          // router.push("/forgot-password"); // uncomment when ready
+        },
+      });
     }
+  };
+
+  const handleSocialLogin = (provider: string) => {
+    showAlert({
+      type: "info",
+      title: `${provider} Sign-in`,
+      message: `Sign in with ${provider} is coming soon. Please use your email and password for now.`,
+      primaryLabel: "OK",
+      onPrimary: dismissAlert,
+    });
   };
 
   const handleRegisterNavigation = () => {
     router.push("/register");
   };
+
+  const SOCIAL = [
+    { label: "G", name: "Google" },
+    { label: "A", name: "Apple" },
+    { label: "𝕏", name: "X (Twitter)" },
+  ];
 
   return (
     <KeyboardAvoidingView
@@ -220,6 +271,7 @@ export default function LoginScreen() {
     >
       <StatusBar barStyle="dark-content" />
 
+      {/* Ambient background */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <FloatingOrb
           size={420}
@@ -247,6 +299,7 @@ export default function LoginScreen() {
         <SweepLine delay={3800} top={height * 0.68} />
       </View>
 
+      {/* Success splash overlay */}
       <AnimatePresence>
         {status === "success" && (
           <MotiView
@@ -267,7 +320,6 @@ export default function LoginScreen() {
               }}
               style={styles.waveCircle}
             />
-            {/* Ripple 2 — staggered */}
             <MotiView
               from={{ scale: 0.4, opacity: 0.8 }}
               animate={{ scale: 3, opacity: 0 }}
@@ -283,14 +335,12 @@ export default function LoginScreen() {
                 { borderColor: "rgba(167,139,250,0.5)" },
               ]}
             />
-
             <MotiView
               from={{ scale: 0.75, opacity: 0, translateY: 28 }}
               animate={{ scale: 1, opacity: 1, translateY: 0 }}
               transition={{ type: "spring", damping: 14 }}
               style={styles.splashContent}
             >
-              {/* Floating icon */}
               <MotiView
                 animate={{ translateY: [0, -14, 0], opacity: [1, 0.72, 1] }}
                 transition={{
@@ -301,7 +351,6 @@ export default function LoginScreen() {
               >
                 <CheckCircle2 size={60} color="#FFF" strokeWidth={1.8} />
               </MotiView>
-
               <MotiText
                 from={{ opacity: 0, scale: 0.88 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -310,7 +359,6 @@ export default function LoginScreen() {
               >
                 Welcome Back
               </MotiText>
-
               <MotiText
                 from={{ opacity: 0 }}
                 animate={{ opacity: 0.65 }}
@@ -324,6 +372,7 @@ export default function LoginScreen() {
         )}
       </AnimatePresence>
 
+      {/* Main content */}
       <View style={styles.inner}>
         <MotiView
           from={{ opacity: 0, scale: 0.88 }}
@@ -335,7 +384,6 @@ export default function LoginScreen() {
           <Text style={styles.logoText}>GETSTAY HOST</Text>
         </MotiView>
 
-        {/* FIX: translateX instead of x */}
         <MotiView
           from={{ opacity: 0, translateX: -20 }}
           animate={{ opacity: 1, translateX: 0 }}
@@ -414,29 +462,26 @@ export default function LoginScreen() {
 
           {/* Social row */}
           <View style={styles.socialRow}>
-            {["G", "A", "𝕏"].map((lbl) => (
+            {SOCIAL.map(({ label, name }) => (
               <MotiPressable
-                key={lbl}
+                key={label}
+                onPress={() => handleSocialLogin(name)}
                 animate={({ pressed }) => {
                   "worklet";
                   return { scale: pressed ? 0.91 : 1 };
                 }}
                 style={styles.socialBtn}
               >
-                <Text style={styles.socialLabel}>{lbl}</Text>
+                <Text style={styles.socialLabel}>{label}</Text>
               </MotiPressable>
             ))}
           </View>
 
-          {/* REGISTER NOW OPTION */}
           <MotiPressable
             onPress={handleRegisterNavigation}
             animate={({ pressed }) => {
               "worklet";
-              return {
-                scale: pressed ? 0.98 : 1,
-                opacity: pressed ? 0.8 : 1,
-              };
+              return { scale: pressed ? 0.98 : 1, opacity: pressed ? 0.8 : 1 };
             }}
             style={styles.registerContainer}
           >
@@ -445,10 +490,24 @@ export default function LoginScreen() {
           </MotiPressable>
         </MotiView>
       </View>
+
+      {/* ── AlertPopUp — single instance, driven by `alert` state ── */}
+      <AlertPopUp
+        visible={alert.visible}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        primaryLabel={alert.primaryLabel}
+        secondaryLabel={alert.secondaryLabel}
+        onPrimary={alert.onPrimary}
+        onSecondary={alert.onSecondary}
+        onDismiss={dismissAlert}
+      />
     </KeyboardAvoidingView>
   );
 }
 
+// ─── Styles (unchanged from original) ────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG, overflow: "hidden" },
   splashOverlay: {
@@ -468,10 +527,7 @@ const styles = StyleSheet.create({
     borderWidth: 8,
     borderColor: "rgba(255, 255, 255, 0.2)",
   },
-  splashContent: {
-    alignItems: "center",
-    zIndex: 2,
-  },
+  splashContent: { alignItems: "center", zIndex: 2 },
   successIconOuter: {
     width: 120,
     height: 120,
@@ -496,8 +552,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     fontWeight: "500",
   },
-
-  // Ambient
   orb: { position: "absolute" },
   sweepLine: {
     position: "absolute",
@@ -508,15 +562,7 @@ const styles = StyleSheet.create({
     borderStyle: "dashed",
     left: -width * 0.5,
   },
-
-  // Layout
-  inner: {
-    flex: 1,
-    paddingHorizontal: 32,
-    justifyContent: "center",
-  },
-
-  // Brand
+  inner: { flex: 1, paddingHorizontal: 32, justifyContent: "center" },
   logoBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -547,8 +593,6 @@ const styles = StyleSheet.create({
     color: TEXT_DARK,
     letterSpacing: 1.5,
   },
-
-  // Heading
   headerContainer: { marginBottom: 36 },
   title: {
     fontSize: 40,
@@ -556,14 +600,7 @@ const styles = StyleSheet.create({
     color: TEXT_DARK,
     letterSpacing: -1.2,
   },
-  subtitle: {
-    fontSize: 15,
-    color: TEXT_MID,
-    marginTop: 8,
-    lineHeight: 22,
-  },
-
-  // Input
+  subtitle: { fontSize: 15, color: TEXT_MID, marginTop: 8, lineHeight: 22 },
   fieldContainer: { marginBottom: 14 },
   inputWrapper: {
     flexDirection: "row",
@@ -599,20 +636,11 @@ const styles = StyleSheet.create({
     height: 28,
     paddingTop: 0,
     paddingBottom: 0,
-    opacity: 0, // hidden until label has floated up
+    opacity: 0,
   },
-  textInputActive: {
-    opacity: 1,
-    marginTop: 14, // pushes text below the floated label
-  },
+  textInputActive: { opacity: 1, marginTop: 14 },
   inputRight: { marginLeft: 8 },
   eyeBtn: { padding: 4 },
-
-  // Forgot
-  forgotBtn: { alignSelf: "flex-end", marginBottom: 22, marginTop: 2 },
-  forgotText: { color: ACCENT, fontWeight: "700", fontSize: 14 },
-
-  // Button
   button: {
     height: 62,
     backgroundColor: ACCENT,
@@ -632,8 +660,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.3,
   },
-
-  // Spinner
   spinner: {
     width: 24,
     height: 24,
@@ -642,23 +668,6 @@ const styles = StyleSheet.create({
     borderColor: "#FFF",
     borderTopColor: "transparent",
   },
-
-  // Divider
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  dividerLine: { flex: 1, height: 1, backgroundColor: BORDER },
-  dividerText: {
-    fontSize: 12,
-    color: TEXT_LIGHT,
-    marginHorizontal: 14,
-    fontWeight: "500",
-  },
-
-  // Social
   socialRow: { flexDirection: "row", gap: 12, marginBottom: 24 },
   socialBtn: {
     flex: 1,
@@ -671,8 +680,6 @@ const styles = StyleSheet.create({
     backgroundColor: SURFACE,
   },
   socialLabel: { fontSize: 16, color: TEXT_DARK, fontWeight: "700" },
-
-  // Register Redirect
   registerContainer: {
     flexDirection: "row",
     justifyContent: "center",
@@ -680,14 +687,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 8,
   },
-  registerTextLeft: {
-    fontSize: 14,
-    color: TEXT_MID,
-    fontWeight: "500",
-  },
-  registerTextLink: {
-    fontSize: 14,
-    color: ACCENT,
-    fontWeight: "700",
-  },
+  registerTextLeft: { fontSize: 14, color: TEXT_MID, fontWeight: "500" },
+  registerTextLink: { fontSize: 14, color: ACCENT, fontWeight: "700" },
 });
