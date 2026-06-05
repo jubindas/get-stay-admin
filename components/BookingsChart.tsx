@@ -46,7 +46,6 @@ export default function BookingsChart() {
 
   return (
     <View style={styles.analyticsCard}>
-      {/* Header Row */}
       <View style={styles.cardHeaderRow}>
         <View>
           <Text style={styles.cardTitle}>Bookings Trend</Text>
@@ -68,7 +67,6 @@ export default function BookingsChart() {
         </View>
       </View>
 
-      {/* NEW: Summary Info Row */}
       <View style={styles.summaryRow}>
          <View>
             <Text style={styles.summaryValue}>{totalBookings}</Text>
@@ -79,9 +77,7 @@ export default function BookingsChart() {
          </View>
       </View>
 
-      {/* Chart Visuals with Background Grid */}
       <View style={styles.chartContainer}>
-        {/* Background Grid Lines */}
         <View style={styles.gridLinesContainer}>
             <View style={styles.gridLine} />
             <View style={styles.gridLine} />
@@ -102,7 +98,6 @@ export default function BookingsChart() {
         </View>
       </View>
 
-      {/* Labels */}
       <View style={styles.barLabels}>
         {current.labels.map((label: string, i: number) => (
           <Text key={i} style={styles.barLabelText}>{label}</Text>

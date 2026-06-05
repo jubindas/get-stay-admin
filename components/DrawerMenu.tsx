@@ -1,5 +1,6 @@
 
-import { Feather, MaterialCommunityIcons } from "@expo/vector-icons"; // 1. Added MaterialCommunityIcons import
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons"; 
+
 import { AccountSwitcher } from "./AccountSwitcher";
 
 import { router, usePathname } from "expo-router";

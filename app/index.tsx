@@ -234,12 +234,8 @@ export default function LoginScreen() {
           error?.response?.data?.error ||
           "Invalid email or password. Please try again.",
         primaryLabel: "Retry",
-        secondaryLabel: "Forgot password?",
+
         onPrimary: dismissAlert,
-        onSecondary: () => {
-          dismissAlert();
-          // router.push("/forgot-password"); // uncomment when ready
-        },
       });
     }
   };
@@ -498,7 +494,6 @@ export default function LoginScreen() {
         title={alert.title}
         message={alert.message}
         primaryLabel={alert.primaryLabel}
-        secondaryLabel={alert.secondaryLabel}
         onPrimary={alert.onPrimary}
         onSecondary={alert.onSecondary}
         onDismiss={dismissAlert}

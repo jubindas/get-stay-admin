@@ -1,8 +1,12 @@
 /* eslint-disable import/no-named-as-default-member */
 import axios from "axios";
+
 import * as ImagePicker from "expo-image-picker";
+
 import { router } from "expo-router";
+
 import React, { useState } from "react";
+
 import {
   ActivityIndicator,
   Image,
@@ -17,7 +21,6 @@ import {
 
 import AlertPopUp, { AlertType } from "@/components/AlertPopUp";
 
-// ─── Design Tokens ────────────────────────────────────────────────────────────
 const ACCENT = "#6366F1";
 const ACCENT_LIGHT = "#EEF2FF";
 const BRAND = "#4F46E5";
@@ -29,7 +32,7 @@ const TEXT_MID = "#4A5568";
 const TEXT_LIGHT = "#94A3B8";
 const ERROR_COLOR = "#F43F5E";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+
 type DocumentType =
   | "Passport"
   | "National ID"
@@ -61,8 +64,7 @@ interface FieldError {
   document_type?: string;
 }
 
-// STEP 2: Define the shape of your alert state.
-// This is a reusable interface — copy it to every screen that needs alerts.
+
 interface AlertState {
   visible: boolean;
   type: AlertType;
@@ -74,8 +76,7 @@ interface AlertState {
   onSecondary?: () => void;
 }
 
-// STEP 3: A "blank" / hidden default state.
-// When you want to hide the alert, just set state back to this.
+
 const ALERT_HIDDEN: AlertState = {
   visible: false,
   type: "info",
@@ -136,7 +137,6 @@ const buildFormData = (form: FormState): FormData => {
   return data;
 };
 
-// ─── Sub-components (unchanged) ───────────────────────────────────────────────
 const SectionLabel = ({ label }: { label: string }) => (
   <View style={styles.sectionHeader}>
     <Text style={styles.sectionLabel}>{label}</Text>
@@ -208,7 +208,7 @@ const StyledInput = ({
   </View>
 );
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+
 export default function RegisterScreen() {
   const [form, setForm] = useState<FormState>({
     full_name: "",
@@ -221,10 +221,15 @@ export default function RegisterScreen() {
     image: null,
     document: null,
   });
+
   const [errors, setErrors] = useState<FieldError>({});
+
   const [loading, setLoading] = useState(false);
+
   const [focusedField, setFocusedField] = useState<string | null>(null);
+
   const [showPassword, setShowPassword] = useState(false);
+
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [alert, setAlert] = useState<AlertState>(ALERT_HIDDEN);
@@ -267,8 +272,6 @@ export default function RegisterScreen() {
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      // STEP 6B — validation error alert.
-      // No buttons needed beyond "Fix it", so just one primary button.
       showAlert({
         type: "warning",
         title: "Validation Error",

@@ -1,7 +1,11 @@
 import { useAuth } from "@/provider/AuthProvider";
+
 import { Feather } from "@expo/vector-icons";
+
 import axios from "axios";
+
 import React, { useEffect, useRef, useState } from "react";
+
 import {
   ActivityIndicator,
   Animated,
@@ -15,7 +19,6 @@ import {
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
-// ── Per-item switcher row, each animates independently ──
 const SwitcherItem = ({
   account,
   onPress,
@@ -75,14 +78,21 @@ const SwitcherItem = ({
 };
 
 export const AccountSwitcher = () => {
+
   const { token } = useAuth();
+
   const [accounts, setAccounts] = useState<any[]>([]);
+
   const [activeAccount, setActiveAccount] = useState<any>(null);
+
   const [switcherOpen, setSwitcherOpen] = useState(false);
+
   const [loading, setLoading] = useState(true);
 
   const switcherHeight = useRef(new Animated.Value(0)).current;
+
   const switcherOpacity = useRef(new Animated.Value(0)).current;
+
   const chevronAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -134,6 +144,7 @@ export const AccountSwitcher = () => {
   }, [token]);
 
   const OTHER_ACCOUNTS = accounts.filter((a) => a.id !== activeAccount?.id);
+
   const EXPANDED_HEIGHT = OTHER_ACCOUNTS.length * 62 + 24;
 
   const openSwitcher = () => {

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef } from "react";
+
 import {
   Animated,
   Dimensions,
@@ -10,7 +11,7 @@ import {
   View,
 } from "react-native";
 
-// ─── Theme ────────────────────────────────────────────────────────────────────
+
 const ACCENT   = "#4F6EF7";
 const BG       = "#F8FAFF";
 const SURFACE  = "#FFFFFF";
@@ -18,7 +19,7 @@ const BORDER   = "#E2E8F0";
 const TEXT_DARK = "#0F172A";
 const TEXT_MID  = "#64748B";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+
 export type AlertType = "success" | "error" | "warning" | "info";
 
 interface AlertConfig {
@@ -65,7 +66,6 @@ const CONFIGS: Record<AlertType, AlertConfig> = {
   },
 };
 
-// ─── Props ────────────────────────────────────────────────────────────────────
 export interface AlertPopUpProps {
   visible:        boolean;
   type?:          AlertType;
@@ -79,13 +79,11 @@ export interface AlertPopUpProps {
   dismissable?:   boolean;
 }
 
-// ─── Spring presets ──────────────────────────────────────────────────────────
-// "Butter" = fast tension, high friction → snaps in with no bounce overload
+
 const SP_CARD   = { damping: 26, stiffness: 300, useNativeDriver: true } as const;
 const SP_ICON   = { damping: 14, stiffness: 320, useNativeDriver: true } as const;
 const SP_SUBTLE = { damping: 22, stiffness: 260, useNativeDriver: true } as const;
 
-// ─── Animated Pressable button ───────────────────────────────────────────────
 function SpringButton({
   onPress,
   style,
@@ -113,7 +111,7 @@ function SpringButton({
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function AlertPopUp({
   visible,
   type        = "info",
@@ -128,9 +126,8 @@ export default function AlertPopUp({
 }: AlertPopUpProps) {
   const cfg = CONFIGS[type];
 
-  // ── Animated values ──────────────────────────────────────────────────────
   const backdrop      = useRef(new Animated.Value(0)).current;
-  const blurScale     = useRef(new Animated.Value(1.08)).current; // subtle zoom-out on backdrop
+  const blurScale     = useRef(new Animated.Value(1.08)).current; 
   const cardY         = useRef(new Animated.Value(32)).current;
   const cardScale     = useRef(new Animated.Value(0.88)).current;
   const cardOpacity   = useRef(new Animated.Value(0)).current;
@@ -143,7 +140,7 @@ export default function AlertPopUp({
   const accentWidth   = useRef(new Animated.Value(0)).current;
   const shimmerX      = useRef(new Animated.Value(-1)).current;
 
-  // ── Reset helper ─────────────────────────────────────────────────────────
+
   const reset = useCallback(() => {
     backdrop.setValue(0);
     blurScale.setValue(1.08);
@@ -162,9 +159,8 @@ export default function AlertPopUp({
 
   useEffect(() => {
     if (visible) {
-      // ── ENTER: three micro-waves, tightly staggered ──────────────────────
+      
       Animated.parallel([
-        // Wave 1 — backdrop dims in
         Animated.timing(backdrop, {
           toValue: 1, duration: 260,
           easing: Easing.out(Easing.ease),
@@ -176,7 +172,6 @@ export default function AlertPopUp({
           useNativeDriver: true,
         }),
 
-        // Wave 2 — card springs up (slight delay)
         Animated.sequence([
           Animated.delay(40),
           Animated.parallel([
