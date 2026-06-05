@@ -2,17 +2,22 @@ import axios from "axios";
 
 import * as ImagePicker from "expo-image-picker";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+
+import AlertPopUp, { AlertType } from "@/components/AlertPopUp";
 
 import Header from "../components/Header";
-import AlertPopUp, { AlertType } from "@/components/AlertPopUp";
 
 import * as Location from "expo-location";
 
 import { useAuth } from "@/provider/AuthProvider";
 
+import { useRouter } from "expo-router";
+
+import { Bed, Building, MapPin, Plus, X, Pencil } from "lucide-react-native";
+
 import {
-  Alert,
+  Animated,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -23,7 +28,8 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  useWindowDimensions,
+  View
 } from "react-native";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -118,9 +124,8 @@ function buildFormData(form: PropertyForm, propertyImages: string[]): FormData {
     }
   });
 
-
-
-  propertyImages.forEach((uri, index) => {
+  const newImages = propertyImages.filter(uri => !uri.startsWith('/'));
+  newImages.forEach((uri, index) => {
     const filename = uri.split("/").pop() ?? `property_${index}.jpg`;
     const ext = filename.split(".").pop()?.toLowerCase() ?? "jpg";
     const mime = ext === "png" ? "image/png" : "image/jpeg";
@@ -318,7 +323,7 @@ function ImagePickerField({
           style={styles.thumbnailList}
           renderItem={({ item }) => (
             <View style={styles.thumbnailWrapper}>
-              <Image source={{ uri: item }} style={styles.thumbnail} />
+              <Image source={{ uri: item.startsWith('/') ? `${API_BASE_URL}${item}` : item }} style={styles.thumbnail} />
               <TouchableOpacity
                 style={styles.removeBtn}
                 onPress={() => remove(item)}
@@ -397,9 +402,33 @@ function Section({
   );
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function AddProperty() {
+  const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [properties, setProperties] = useState<any[]>([]);
+  const [propertiesLoading, setPropertiesLoading] = useState(true);
+
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(scaleAnim, {
+          toValue: 1.05,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [scaleAnim]);
 
   const [alert, setAlert] = useState<AlertState>(ALERT_HIDDEN);
   const dismissAlert = () => setAlert((a) => ({ ...a, visible: false }));
@@ -444,6 +473,30 @@ export default function AddProperty() {
       setLocationLoading(false);
     }
   };
+
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/host/properties`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+
+        console.log("the properties are", JSON.stringify(res.data, null, 2))
+
+        if (res.data && Array.isArray(res.data.properties)) {
+          setProperties(res.data.properties);
+        }
+      } catch (e) {
+        console.error("Failed to fetch properties:", e);
+      } finally {
+        setPropertiesLoading(false);
+      }
+    };
+    if (token && !showForm) {
+      fetchProperties();
+    }
+  }, [token, showForm]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -493,8 +546,20 @@ export default function AddProperty() {
     try {
       const formData = buildFormData(form, propertyImages);
 
-      const response = await axios.post(
-        `${API_BASE_URL}/api/host/properties/create`,
+      if (editingPropertyId) {
+        const originalImages = properties.find(p => p.id === editingPropertyId)?.property_images || [];
+        const keptExistingImages = propertyImages.filter(uri => uri.startsWith('/'));
+        const imagesToDelete = originalImages.filter((uri: string) => !keptExistingImages.includes(uri));
+        imagesToDelete.forEach((img: string) => formData.append("images_to_delete", img));
+      }
+
+      const endpoint = editingPropertyId 
+        ? `${API_BASE_URL}/api/host/properties/${editingPropertyId}`
+        : `${API_BASE_URL}/api/host/properties/create`;
+      const method = editingPropertyId ? axios.patch : axios.post;
+
+      const response = await method(
+        endpoint,
         formData,
         {
           headers: {
@@ -504,16 +569,18 @@ export default function AddProperty() {
         },
       );
 
-      console.log("Property Created:", response.data);
+      console.log("Property Saved:", response.data);
 
       showAlert({
         type: "success",
         title: "Success",
-        message: "Property created successfully!",
+        message: `Property ${editingPropertyId ? 'updated' : 'created'} successfully!`,
         primaryLabel: "OK",
         onPrimary: () => {
           setForm(INITIAL_FORM);
           setPropertyImages([]);
+          setEditingPropertyId(null);
+          setShowForm(false);
           dismissAlert();
         },
       });
@@ -565,155 +632,292 @@ export default function AddProperty() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.mainContainer}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <Header />
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* ── Property Info ── */}
-        <Section title="Property Info">
-          <Field
-            label="Property Name"
-            value={form.property_name}
-            onChange={set("property_name")}
-            placeholder="e.g. Sunset Villa"
-          />
-
-          <CategoryDropdown
-            categories={categories}
-            value={form.category_id}
-            onChange={(id) => setForm((prev) => ({ ...prev, category_id: id }))}
-            loading={categoriesLoading}
-          />
-
-          <Field
-            label="Display Address"
-            value={form.address_display}
-            onChange={set("address_display")}
-            optional
-          />
-
-          <ImagePickerField
-            label="Property Images"
-            images={propertyImages}
-            onChange={setPropertyImages}
-            onError={(msg) => showAlert({
-              type: "warning",
-              title: "Permission required",
-              message: msg,
-              primaryLabel: "OK",
-              onPrimary: dismissAlert,
-            })}
-          />
-        </Section>
-
-        <Section title="Location">
-          <Field label="State" value={form.state} onChange={set("state")} />
-          <Field label="City" value={form.city} onChange={set("city")} />
-          <Field
-            label="District"
-            value={form.district}
-            onChange={set("district")}
-          />
-          <Field
-            label="Village"
-            value={form.village}
-            onChange={set("village")}
-            optional
-          />
-          <Field
-            label="Pincode"
-            value={form.pincode}
-            onChange={set("pincode")}
-            numeric
-          />
-          <Field
-            label="Post Office"
-            value={form.post_office}
-            onChange={set("post_office")}
-            optional
-          />
-
-          {/* ── Coordinates ── */}
-          <View style={styles.fieldWrapper}>
-            {/* Label row with GPS button */}
-            <View style={styles.labelRow}>
-              <Text style={styles.label}>Coordinates</Text>
-              <TouchableOpacity
-                style={[
-                  styles.locationBtn,
-                  locationLoading && styles.locationBtnDisabled,
-                ]}
-                onPress={handleGetLocation}
-                disabled={locationLoading}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.locationBtnText}>
-                  {locationLoading ? "Fetching..." : "📍 Use Current Location"}
-                </Text>
+    <>
+      <View style={styles.mainContainer}>
+        <Header />
+        <View style={styles.listContainer}>
+          <View style={styles.listHeader}>
+            <View>
+              <Text style={styles.pageTitle}>My Properties</Text>
+              <Text style={styles.pageSubtitle}>Manage your listed rental spots</Text>
+            </View>
+            <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+              <TouchableOpacity style={styles.addBtn} onPress={() => {
+                setEditingPropertyId(null);
+                setForm(INITIAL_FORM);
+                setPropertyImages([]);
+                setShowForm(true);
+              }} activeOpacity={0.8}>
+                <Plus size={18} color="#fff" strokeWidth={3} />
+                <Text style={styles.addBtnText}>Add Property</Text>
               </TouchableOpacity>
-            </View>
-
-            {/* Side-by-side lat/lng inputs */}
-            <View style={styles.coordRow}>
-              <View style={styles.coordField}>
-                <Text style={styles.coordLabel}>Latitude</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. 26.748819"
-                  placeholderTextColor="#aaa"
-                  value={form.latitude}
-                  onChangeText={set("latitude")}
-                  keyboardType="numeric"
-                />
-              </View>
-              <View style={styles.coordField}>
-                <Text style={styles.coordLabel}>Longitude</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. 94.209869"
-                  placeholderTextColor="#aaa"
-                  value={form.longitude}
-                  onChangeText={set("longitude")}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
+            </Animated.View>
           </View>
-        </Section>
 
+          {propertiesLoading ? (
+            <Text style={styles.loadingText}>Loading properties...</Text>
+          ) : properties.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Building size={48} color={COLORS.inactiveText} />
+              <Text style={styles.emptyStateText}>No properties found</Text>
+              <Text style={styles.emptyStateSubtext}>Add your first property to get started</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={properties}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <View style={styles.propertyCard}>
+                  {item.property_images && item.property_images.length > 0 ? (
+                    <FlatList
+                      data={item.property_images}
+                      horizontal
+                      pagingEnabled
+                      showsHorizontalScrollIndicator={false}
+                      keyExtractor={(_, index) => index.toString()}
+                      renderItem={({ item: imgPath }) => (
+                        <Image
+                          source={{ uri: `${API_BASE_URL}${imgPath}` }}
+                          style={[styles.propertyCardImage, { width: windowWidth - 42 }]}
+                        />
+                      )}
+                    />
+                  ) : (
+                    <View style={styles.propertyCardImagePlaceholder}>
+                      <Building size={48} color={COLORS.inactiveText} opacity={0.5} />
+                    </View>
+                  )}
+                  {item.category?.category_name && (
+                    <View style={styles.propertyCategoryBadge}>
+                      <Text style={styles.propertyCategoryText}>{item.category.category_name}</Text>
+                    </View>
+                  )}
+                  <View style={styles.propertyCardInfo}>
+                    <Text style={styles.propertyCardTitle} numberOfLines={1}>{item.property_name}</Text>
+                    <View style={styles.propertyCardLocation}>
+                      <MapPin size={16} color={COLORS.inactiveText} />
+                      <Text style={styles.propertyCardLocationText} numberOfLines={1}>
+                        {item.address_display || `${item.city || ""}${item.city && item.state ? ", " : ""}${item.state || ""}`}
+                      </Text>
+                    </View>
 
+                    <View style={styles.propertyStatsRow}>
+                      <View style={styles.propertyStat}>
+                        <Bed size={16} color={COLORS.primary} />
+                        <Text style={styles.propertyStatText}>
+                          {item.room_details?.length ? `${item.room_details.length} Room${item.room_details.length > 1 ? 's' : ''}` : 'No Rooms Added'}
+                        </Text>
+                      </View>
 
-        <TouchableOpacity
-          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-          activeOpacity={0.8}
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        <TouchableOpacity 
+                          style={styles.editBtnOnCard}
+                          onPress={() => {
+                            setEditingPropertyId(item.id);
+                            setForm({
+                              property_name: item.property_name || "",
+                              category_id: item.category_id || "",
+                              address_display: item.address_display || "",
+                              state: item.state || "",
+                              city: item.city || "",
+                              district: item.district || "",
+                              village: item.village || "",
+                              pincode: item.pincode?.toString() || "",
+                              post_office: item.post_office || "",
+                              latitude: item.latitude || "",
+                              longitude: item.longitude || "",
+                            });
+                            setPropertyImages(item.property_images || []);
+                            setShowForm(true);
+                          }}
+                        >
+                          <Pencil size={14} color="#fff" />
+                          <Text style={styles.addRoomBtnOnCardText}>Edit</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.addRoomBtnOnCard}
+                          onPress={() => router.push({ pathname: "/add-rooms", params: { propertyId: item.id } })}
+                        >
+                          <Plus size={14} color="#fff" />
+                          <Text style={styles.addRoomBtnOnCardText}>Add Room</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                  </View>
+                </View>
+              )}
+            />
+          )}
+        </View>
+      </View>
+
+      <Modal
+        visible={showForm}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowForm(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.mainContainer}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <Text style={styles.submitText}>
-            {loading ? "Creating..." : "Create Property"}
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
+          <View style={styles.formHeaderRow}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => setShowForm(false)}>
+              <X size={24} color={COLORS.inactiveText} />
+            </TouchableOpacity>
+            <Text style={styles.formHeaderText}>{editingPropertyId ? "Edit Property" : "Create Property"}</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          <ScrollView
+            style={styles.container}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
 
-      <AlertPopUp
-        visible={alert.visible}
-        type={alert.type}
-        title={alert.title}
-        message={alert.message}
-        primaryLabel={alert.primaryLabel}
-        secondaryLabel={alert.secondaryLabel}
-        onPrimary={alert.onPrimary}
-        onSecondary={alert.onSecondary}
-        onDismiss={dismissAlert}
-      />
-    </KeyboardAvoidingView>
+            <Section title="Property Info">
+              <Field
+                label="Property Name"
+                value={form.property_name}
+                onChange={set("property_name")}
+                placeholder="e.g. Sunset Villa"
+              />
+
+              <CategoryDropdown
+                categories={categories}
+                value={form.category_id}
+                onChange={(id) => setForm((prev) => ({ ...prev, category_id: id }))}
+                loading={categoriesLoading}
+              />
+
+              <Field
+                label="Display Address"
+                value={form.address_display}
+                onChange={set("address_display")}
+                optional
+              />
+
+              <ImagePickerField
+                label="Property Images"
+                images={propertyImages}
+                onChange={setPropertyImages}
+                onError={(msg) => showAlert({
+                  type: "warning",
+                  title: "Permission required",
+                  message: msg,
+                  primaryLabel: "OK",
+                  onPrimary: dismissAlert,
+                })}
+              />
+            </Section>
+
+            <Section title="Location">
+              <Field label="State" value={form.state} onChange={set("state")} />
+              <Field label="City" value={form.city} onChange={set("city")} />
+              <Field
+                label="District"
+                value={form.district}
+                onChange={set("district")}
+              />
+              <Field
+                label="Village"
+                value={form.village}
+                onChange={set("village")}
+                optional
+              />
+              <Field
+                label="Pincode"
+                value={form.pincode}
+                onChange={set("pincode")}
+                numeric
+              />
+              <Field
+                label="Post Office"
+                value={form.post_office}
+                onChange={set("post_office")}
+                optional
+              />
+
+              {/* ── Coordinates ── */}
+              <View style={styles.fieldWrapper}>
+                {/* Label row with GPS button */}
+                <View style={styles.labelRow}>
+                  <Text style={styles.label}>Coordinates</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.locationBtn,
+                      locationLoading && styles.locationBtnDisabled,
+                    ]}
+                    onPress={handleGetLocation}
+                    disabled={locationLoading}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.locationBtnText}>
+                      {locationLoading ? "Fetching..." : "📍 Use Current Location"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Side-by-side lat/lng inputs */}
+                <View style={styles.coordRow}>
+                  <View style={styles.coordField}>
+                    <Text style={styles.coordLabel}>Latitude</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g. 26.748819"
+                      placeholderTextColor="#aaa"
+                      value={form.latitude}
+                      onChangeText={set("latitude")}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <View style={styles.coordField}>
+                    <Text style={styles.coordLabel}>Longitude</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g. 94.209869"
+                      placeholderTextColor="#aaa"
+                      value={form.longitude}
+                      onChangeText={set("longitude")}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </View>
+              </View>
+            </Section>
+
+
+
+            <TouchableOpacity
+              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.submitText}>
+                {loading ? "Saving..." : editingPropertyId ? "Update Property" : "Create Property"}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+
+          <AlertPopUp
+            visible={alert.visible}
+            type={alert.type}
+            title={alert.title}
+            message={alert.message}
+            primaryLabel={alert.primaryLabel}
+            secondaryLabel={alert.secondaryLabel}
+            onPrimary={alert.onPrimary}
+            onSecondary={alert.onSecondary}
+            onDismiss={dismissAlert}
+          />
+        </KeyboardAvoidingView>
+      </Modal>
+    </>
   );
 }
 
@@ -731,6 +935,40 @@ const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: "#fff" },
   container: { flex: 1, backgroundColor: "#fff" },
   content: { padding: 20, paddingBottom: 48 },
+  listContainer: { flex: 1, padding: 20 },
+  listHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  pageTitle: { fontSize: 24, fontWeight: "700", color: COLORS.activeText },
+  pageSubtitle: { fontSize: 13, color: COLORS.inactiveText, marginTop: 4 },
+  addBtn: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, gap: 6 },
+  addBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
+  loadingText: { textAlign: "center", marginTop: 40, color: COLORS.inactiveText },
+  emptyState: { flex: 1, justifyContent: "center", alignItems: "center", marginTop: 60 },
+  emptyStateText: { fontSize: 18, fontWeight: "600", color: COLORS.inactiveText, marginTop: 16 },
+  emptyStateSubtext: { fontSize: 14, color: COLORS.inactiveText, marginTop: 8 },
+  listContent: { paddingBottom: 40 },
+  propertyCard: { backgroundColor: "#fff", borderRadius: 18, overflow: "hidden", marginBottom: 24, borderWidth: 1, borderColor: COLORS.border, shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 5 },
+  propertyCardImage: { width: "100%", height: 220, backgroundColor: COLORS.activeBg },
+  propertyCardImagePlaceholder: { width: "100%", height: 220, backgroundColor: COLORS.activeBg, justifyContent: "center", alignItems: "center" },
+  propertyCategoryBadge: { position: "absolute", top: 16, right: 16, backgroundColor: "rgba(0,0,0,0.65)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  propertyCategoryText: { color: "#fff", fontSize: 12, fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" },
+  propertyCardInfo: { padding: 18 },
+  propertyCardTitle: { fontSize: 20, fontWeight: "800", color: COLORS.activeText, marginBottom: 8 },
+  propertyCardLocation: { flexDirection: "row", alignItems: "center", gap: 6 },
+  propertyCardLocationText: { fontSize: 14, color: COLORS.inactiveText, fontWeight: "500", flexShrink: 1 },
+  propertyDetailsGrid: { flexDirection: "row", flexWrap: "wrap", marginTop: 12, borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 12, rowGap: 10 },
+  propertyDetailItem: { width: "50%", paddingRight: 8 },
+  propertyDetailLabelRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 2 },
+  propertyDetailLabel: { fontSize: 10, color: COLORS.inactiveText, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: "600" },
+  propertyDetailValue: { fontSize: 13, color: COLORS.activeText, fontWeight: "500" },
+  propertyStatsRow: { flexDirection: "row", marginTop: 10, justifyContent: "space-between", alignItems: "center" },
+  propertyStat: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.activeBg, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, gap: 6 },
+  propertyStatText: { fontSize: 13, fontWeight: "600", color: COLORS.primary },
+  addRoomBtnOnCard: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, gap: 4 },
+  editBtnOnCard: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.inactiveText, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, gap: 4 },
+  addRoomBtnOnCardText: { fontSize: 12, fontWeight: "600", color: "#fff" },
+  formHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  backBtn: { padding: 4 },
+  formHeaderText: { fontSize: 18, fontWeight: "600", color: COLORS.activeText },
   // Add these to your StyleSheet
   locationBtn: {
     marginLeft: "auto",

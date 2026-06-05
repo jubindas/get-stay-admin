@@ -20,8 +20,11 @@ import OccupancyCard from "../components/OccupancyCard";
 import Header from "../components/Header";
 
 import { useAuth } from "@/provider/AuthProvider";
+
 import axios from "axios";
-import { router } from "expo-router"; // Added for handling navigation to add property
+
+import { router } from "expo-router"; 
+
 import RevenueChart from "../components/RevenueChart";
 
 const { width } = Dimensions.get("window");

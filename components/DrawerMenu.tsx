@@ -117,11 +117,11 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, setVisible }) => {
             onPress={() => navigate("/add-property")}
           />
           <MenuItem
-            icon="plus-circle"
-            label="Add Rooms"
-            path="/add-rooms"
+            icon="list"
+            label="My Rooms"
+            path="/my-rooms"
             pathname={pathname}
-            onPress={() => navigate("/add-rooms")}
+            onPress={() => navigate("/my-rooms")}
           />
 
           <MenuItem

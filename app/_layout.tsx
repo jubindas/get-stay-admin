@@ -40,6 +40,7 @@ export default function RootLayout() {
           <Stack.Screen name="settings" />
           <Stack.Screen name="book-rooms" />
           <Stack.Screen name="add-property" />
+          <Stack.Screen name="my-rooms" />
         </Stack>
       </NavigationGuard>
     </AuthProvider>

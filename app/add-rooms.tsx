@@ -1,11 +1,32 @@
 import axios from "axios";
+
 import * as ImagePicker from "expo-image-picker";
-import React, { useEffect, useState } from "react";
-import Header from "../components/Header";
+
 import AlertPopUp, { AlertType } from "@/components/AlertPopUp";
+
 import { useAuth } from "@/provider/AuthProvider";
+
 import {
-  Alert,
+  AlignLeft,
+  BedDouble,
+  Building,
+  Check,
+  ChevronDown,
+  Clock,
+  Image as ImageIcon,
+  IndianRupee,
+  Percent,
+  Plus,
+  Trash2,
+  Users,
+  Wifi,
+  X,
+} from "lucide-react-native";
+
+import { useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
+
+import {
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -16,24 +37,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
-import {
-  Clock,
-  Users,
-  BedDouble,
-  AlignLeft,
-  IndianRupee,
-  Percent,
-  Wifi,
-  Image as ImageIcon,
-  Building,
-  ChevronDown,
-  Plus,
-  X,
-  Check,
-  Trash2,
-} from "lucide-react-native";
+
+import Header from "../components/Header";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -70,15 +77,12 @@ const COLORS = {
   successLight: "#D1FAE5",
 };
 
-const TIME_OPTIONS = Array.from({ length: 48 }).map((_, i) => {
-  const h = Math.floor(i / 2).toString().padStart(2, "0");
-  const m = i % 2 === 0 ? "00" : "30";
-  return `${h}:${m}`;
-});
 
 interface Property {
   id: string;
   property_name: string;
+  address_display?: string;
+  property_images?: string[];
 }
 
 interface Category {
@@ -171,67 +175,6 @@ function Field({
   );
 }
 
-function TimePickerField({ label, value, onChange, icon: Icon }: any) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <View style={styles.fieldWrapper}>
-      <View style={styles.labelRow}>
-        <Text style={styles.label}>{label}</Text>
-      </View>
-      <TouchableOpacity
-        style={styles.inputContainer}
-        onPress={() => setOpen(true)}
-        activeOpacity={0.7}
-      >
-        {Icon && (
-          <View style={styles.inputIcon}>
-            <Icon size={18} color={COLORS.textLight} />
-          </View>
-        )}
-        <Text style={[styles.input, { lineHeight: 46 }, Icon && { paddingLeft: 40 }]}>
-          {value || "Select Time"}
-        </Text>
-        <View style={styles.dropdownIcon}>
-          <ChevronDown size={18} color={COLORS.textLight} />
-        </View>
-      </TouchableOpacity>
-
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setOpen(false)} />
-        <View style={styles.modalSheet}>
-          <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Select {label}</Text>
-          <FlatList
-            data={TIME_OPTIONS}
-            keyExtractor={(item) => item}
-            numColumns={3}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 20 }}
-            columnWrapperStyle={{ gap: 10, marginBottom: 10 }}
-            renderItem={({ item }) => {
-              const isSelected = item === value;
-              return (
-                <TouchableOpacity
-                  style={[styles.timeOption, isSelected && styles.timeOptionSelected]}
-                  onPress={() => {
-                    onChange(item);
-                    setOpen(false);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.timeOptionText, isSelected && styles.timeOptionTextSelected]}>
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              );
-            }}
-          />
-        </View>
-      </Modal>
-    </View>
-  );
-}
 
 function ImagePickerField({ label, images, onChange, optional, onError }: any) {
   const pick = async () => {
@@ -360,19 +303,20 @@ function CustomDropdown({ items, value, onChange, loading, label, icon: Icon, pl
 
 export default function AddRooms() {
   const { token } = useAuth();
-  
+  const { propertyId: urlPropertyId } = useLocalSearchParams<{ propertyId: string }>();
+
   const [alert, setAlert] = useState<AlertState>(ALERT_HIDDEN);
   const dismissAlert = () => setAlert((a) => ({ ...a, visible: false }));
   const showAlert = (config: Omit<AlertState, "visible">) =>
     setAlert({ ...config, visible: true });
 
-  const [propertyId, setPropertyId] = useState<string>("");
+  const [propertyId, setPropertyId] = useState<string>(urlPropertyId || "");
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
 
   const [rooms, setRooms] = useState<RoomEntry[]>([{ ...INITIAL_ROOM }]);
   const [roomImages, setRoomImages] = useState<string[]>([]);
-  
+
   const [roomCategories, setRoomCategories] = useState<Category[]>([]);
   const [roomCategoriesLoading, setRoomCategoriesLoading] = useState(true);
 
@@ -533,16 +477,57 @@ export default function AddRooms() {
         <Text style={styles.pageTitle}>Add Rooms</Text>
         <Text style={styles.pageSubtitle}>Expand your property with new room listings.</Text>
 
-        <Section title="Property Details" icon={Building}>
-          <CustomDropdown
-            items={properties}
-            value={propertyId}
-            onChange={setPropertyId}
-            loading={propertiesLoading}
-            label="Target Property"
-            icon={Building}
-            placeholder="Select a property"
-          />
+        <Section title="Target Property" icon={Building}>
+          {propertiesLoading ? (
+            <Text style={{ color: COLORS.textMuted }}>Loading property info...</Text>
+          ) : (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#fff',
+              padding: 16,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.05,
+              shadowRadius: 10,
+              elevation: 3,
+            }}>
+              {(() => {
+                const p = properties.find(p => p.id === propertyId);
+                if (!p) return <Text style={{ color: COLORS.textMuted }}>Unknown Property</Text>;
+                return (
+                  <>
+                    {p.property_images && p.property_images.length > 0 ? (
+                      <Image
+                        source={{ uri: `${API_BASE_URL}${p.property_images[0]}` }}
+                        style={{ width: 54, height: 54, borderRadius: 12, marginRight: 14, backgroundColor: COLORS.primaryLight }}
+                      />
+                    ) : (
+                      <View style={{ width: 54, height: 54, borderRadius: 12, marginRight: 14, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' }}>
+                        <Building size={24} color={COLORS.primary} />
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.textActive, marginBottom: 2 }}>
+                        {p.property_name}
+                      </Text>
+                      {p.address_display && (
+                        <Text style={{ fontSize: 13, color: COLORS.textMuted }}>
+                          {p.address_display}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={{ backgroundColor: COLORS.successLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: COLORS.success }}>SELECTED</Text>
+                    </View>
+                  </>
+                );
+              })()}
+            </View>
+          )}
         </Section>
 
         <Section title="Global Gallery" icon={ImageIcon}>
@@ -630,10 +615,10 @@ export default function AddRooms() {
 
             <View style={styles.roomRow}>
               <View style={styles.roomRowField}>
-                <TimePickerField label="Check-in Time" value={room.check_in_time} onChange={(val: string) => updateRoom(room.id, "check_in_time", val)} icon={Clock} />
+                <Field label="Check-in Time" placeholder="e.g. 14:00" value={room.check_in_time} onChange={(val: string) => updateRoom(room.id, "check_in_time", val)} icon={Clock} />
               </View>
               <View style={styles.roomRowField}>
-                <TimePickerField label="Check-out Time" value={room.check_out_time} onChange={(val: string) => updateRoom(room.id, "check_out_time", val)} icon={Clock} />
+                <Field label="Check-out Time" placeholder="e.g. 11:00" value={room.check_out_time} onChange={(val: string) => updateRoom(room.id, "check_out_time", val)} icon={Clock} />
               </View>
             </View>
           </View>
@@ -703,12 +688,12 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: "600", color: COLORS.textActive },
   optionalTag: { marginLeft: 8, fontSize: 11, color: COLORS.textLight, fontWeight: "500", backgroundColor: "#F1F5F9", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   imageCount: { marginLeft: "auto", fontSize: 11, color: COLORS.primary, fontWeight: "600", backgroundColor: COLORS.primaryLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
-  
+
   inputContainer: { position: "relative", justifyContent: "center" },
   inputContainerMultiline: { height: 100 },
   inputIcon: { position: "absolute", left: 14, zIndex: 1 },
   dropdownIcon: { position: "absolute", right: 14, zIndex: 1 },
-  
+
   input: {
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -721,7 +706,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   inputMultiline: { height: "100%", textAlignVertical: "top", paddingTop: 14 },
-  
+
   dropdownSelected: {
     flexDirection: "row",
     alignItems: "center",
@@ -752,7 +737,7 @@ const styles = StyleSheet.create({
   },
   modalHandle: { width: 40, height: 5, backgroundColor: "#CBD5E1", borderRadius: 3, alignSelf: "center", marginBottom: 20 },
   modalTitle: { fontSize: 18, fontWeight: "700", color: COLORS.textActive, marginBottom: 20 },
-  
+
   categoryRow: {
     flexDirection: "row",
     alignItems: "center",
