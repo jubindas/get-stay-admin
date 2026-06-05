@@ -14,7 +14,7 @@ import { useAuth } from "@/provider/AuthProvider";
 
 import { useRouter } from "expo-router";
 
-import { Bed, Building, MapPin, Plus, X, Pencil } from "lucide-react-native";
+import { Bed, Building, MapPin, Pencil, Plus, X } from "lucide-react-native";
 
 import {
   Animated,
@@ -553,7 +553,7 @@ export default function AddProperty() {
         imagesToDelete.forEach((img: string) => formData.append("images_to_delete", img));
       }
 
-      const endpoint = editingPropertyId 
+      const endpoint = editingPropertyId
         ? `${API_BASE_URL}/api/host/properties/${editingPropertyId}`
         : `${API_BASE_URL}/api/host/properties/create`;
       const method = editingPropertyId ? axios.patch : axios.post;
@@ -712,7 +712,7 @@ export default function AddProperty() {
                       </View>
 
                       <View style={{ flexDirection: "row", gap: 8 }}>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           style={styles.editBtnOnCard}
                           onPress={() => {
                             setEditingPropertyId(item.id);

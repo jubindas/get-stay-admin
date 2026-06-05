@@ -14,7 +14,8 @@ import {
   TextInput,
   ScrollView,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Alert
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 
@@ -48,6 +49,8 @@ interface AlertState {
   message: string;
   primaryLabel?: string;
   onPrimary?: () => void;
+  secondaryLabel?: string;
+  onSecondary?: () => void;
 }
 
 const ALERT_HIDDEN: AlertState = {
@@ -55,6 +58,234 @@ const ALERT_HIDDEN: AlertState = {
   type: "info",
   title: "",
   message: "",
+};
+
+const UnitsManagerModal = ({ room, token, onClose, showAlert }: any) => {
+  const [units, setUnits] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [addingUnit, setAddingUnit] = useState(false);
+  const [newUnitData, setNewUnitData] = useState({ room_number: "", floor: "", notes: "", status: "Available" });
+
+  const handleApiError = (action: string, e: any) => {
+    let msg = e.message;
+    if (e.response) {
+      console.error(`[${action}] Server Error ${e.response.status}:`, JSON.stringify(e.response.data, null, 2));
+      msg = e.response.data?.error || e.response.data?.message || `Server Error ${e.response.status}`;
+    } else if (e.request) {
+      console.error(`[${action}] Network Error (No response):`, e.request);
+      msg = "Network error, could not reach server.";
+    } else {
+      console.error(`[${action}] Request Error:`, e.message);
+    }
+    showAlert({ type: "error", title: `${action} Failed`, message: msg });
+  };
+
+  useEffect(() => {
+    fetchUnits();
+  }, [room]);
+
+  const fetchUnits = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/host/room-units/room-details/${room.id}/units`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUnits(res.data.data || []);
+    } catch (e: any) {
+      handleApiError("Fetch Units", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateUnit = async (unitId: string, updatedData: any) => {
+    try {
+      await axios.patch(`${API_BASE_URL}/api/host/room-units/${unitId}`, updatedData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUnits(units.map(u => (u.id === unitId ? { ...u, ...updatedData } : u)));
+      showAlert({ type: "success", title: "Updated", message: "Unit updated successfully.", primaryLabel: "OK" });
+    } catch (e: any) {
+      handleApiError("Update Unit", e);
+    }
+  };
+
+  const handleDeleteUnit = async (unitId: string) => {
+    try {
+      await axios.delete(`${API_BASE_URL}/api/host/room-units/${unitId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUnits(units.filter(u => u.id !== unitId));
+      showAlert({ type: "success", title: "Deleted", message: "Unit deleted successfully.", primaryLabel: "OK" });
+    } catch (e: any) {
+      handleApiError("Delete Unit", e);
+    }
+  };
+
+  const handleAddUnit = async () => {
+    if (!newUnitData.room_number) {
+      showAlert({ type: "warning", title: "Required", message: "Room number is required." });
+      return;
+    }
+    try {
+      const res = await axios.post(`${API_BASE_URL}/api/host/room-units/room-details/${room.id}/units`, newUnitData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUnits([...units, res.data.data]);
+      setAddingUnit(false);
+      setNewUnitData({ room_number: "", floor: "", notes: "", status: "Available" });
+      showAlert({ type: "success", title: "Created", message: "New unit added.", primaryLabel: "OK" });
+    } catch (e: any) {
+      handleApiError("Create Unit", e);
+    }
+  };
+
+  return (
+    <Modal visible={!!room} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLORS.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 20, borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.card }}>
+          <View>
+            <Text style={{ fontSize: 20, fontWeight: "800", color: COLORS.textMain }}>Manage Units</Text>
+            <Text style={{ fontSize: 13, color: COLORS.textMuted }}>Room ID: {room.id.split("-")[0]}</Text>
+          </View>
+          <TouchableOpacity onPress={onClose} style={{ padding: 8, backgroundColor: COLORS.background, borderRadius: 20 }}>
+            <X size={20} color={COLORS.textMain} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {loading ? (
+            <View style={{ padding: 40, alignItems: "center" }}>
+              <Text style={{ color: COLORS.textMuted }}>Loading units...</Text>
+            </View>
+          ) : units.length === 0 ? (
+            <View style={{ padding: 40, alignItems: "center", backgroundColor: COLORS.card, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, marginBottom: 20 }}>
+              <BedDouble size={40} color={COLORS.textLight} />
+              <Text style={{ color: COLORS.textMain, fontWeight: "700", marginTop: 12 }}>No Units Found</Text>
+              <Text style={{ color: COLORS.textMuted, textAlign: "center", marginTop: 4 }}>Add physical room units below.</Text>
+            </View>
+          ) : (
+            units.map((u, idx) => (
+              <UnitRow 
+                key={u.id || idx} 
+                unit={u} 
+                onUpdate={(data: any) => handleUpdateUnit(u.id, data)} 
+                onDelete={() => handleDeleteUnit(u.id)} 
+                showAlert={showAlert}
+              />
+            ))
+          )}
+
+          {addingUnit ? (
+            <View style={{ backgroundColor: COLORS.card, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.primaryLight, marginTop: 10 }}>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: COLORS.textMain, marginBottom: 12 }}>Add New Unit</Text>
+              <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 6, fontWeight: "600" }}>Room No. *</Text>
+                  <TextInput style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, backgroundColor: COLORS.background }} value={newUnitData.room_number} onChangeText={(v) => setNewUnitData({ ...newUnitData, room_number: v })} placeholder="e.g. 101" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 6, fontWeight: "600" }}>Floor</Text>
+                  <TextInput style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, backgroundColor: COLORS.background }} value={newUnitData.floor} onChangeText={(v) => setNewUnitData({ ...newUnitData, floor: v })} placeholder="e.g. 1st" />
+                </View>
+              </View>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 6, fontWeight: "600" }}>Notes</Text>
+                <TextInput style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, backgroundColor: COLORS.background }} value={newUnitData.notes} onChangeText={(v) => setNewUnitData({ ...newUnitData, notes: v })} placeholder="Optional notes" />
+              </View>
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <TouchableOpacity style={{ flex: 1, padding: 12, borderRadius: 10, alignItems: "center", borderWidth: 1, borderColor: COLORS.border }} onPress={() => setAddingUnit(false)}>
+                  <Text style={{ color: COLORS.textMain, fontWeight: "600" }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={{ flex: 1, padding: 12, borderRadius: 10, alignItems: "center", backgroundColor: COLORS.primary }} onPress={handleAddUnit}>
+                  <Text style={{ color: "#FFF", fontWeight: "600" }}>Save Unit</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 16, backgroundColor: COLORS.primaryLight, borderRadius: 16, marginTop: 10, borderWidth: 1, borderColor: "rgba(37,99,235,0.2)" }} onPress={() => setAddingUnit(true)}>
+              <Plus size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
+              <Text style={{ color: COLORS.primary, fontWeight: "700" }}>Add New Unit</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+};
+
+const UnitRow = ({ unit, onUpdate, onDelete, showAlert }: any) => {
+  const [editing, setEditing] = useState(false);
+  const [data, setData] = useState({ room_number: unit.room_number, floor: unit.floor, notes: unit.notes });
+
+  if (editing) {
+    return (
+      <View style={{ backgroundColor: COLORS.card, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.primary, marginBottom: 12, shadowColor: COLORS.primary, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 }}>
+        <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 6, fontWeight: "600" }}>Room No.</Text>
+            <TextInput style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 10, backgroundColor: COLORS.background }} value={data.room_number} onChangeText={(v) => setData({ ...data, room_number: v })} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 6, fontWeight: "600" }}>Floor</Text>
+            <TextInput style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 10, backgroundColor: COLORS.background }} value={data.floor} onChangeText={(v) => setData({ ...data, floor: v })} />
+          </View>
+        </View>
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 6, fontWeight: "600" }}>Notes</Text>
+          <TextInput style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 10, backgroundColor: COLORS.background }} value={data.notes} onChangeText={(v) => setData({ ...data, notes: v })} />
+        </View>
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <TouchableOpacity style={{ flex: 1, padding: 10, borderRadius: 10, alignItems: "center", borderWidth: 1, borderColor: COLORS.border }} onPress={() => { setEditing(false); setData({ room_number: unit.room_number, floor: unit.floor, notes: unit.notes }); }}>
+            <Text style={{ color: COLORS.textMain, fontWeight: "600" }}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={{ flex: 1, padding: 10, borderRadius: 10, alignItems: "center", backgroundColor: COLORS.primary }} onPress={() => { onUpdate(data); setEditing(false); }}>
+            <Text style={{ color: "#FFF", fontWeight: "600" }}>Save</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: COLORS.card, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, marginBottom: 12 }}>
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
+          <Text style={{ fontSize: 16, fontWeight: "700", color: COLORS.textMain, marginRight: 8 }}>{unit.room_number}</Text>
+          <View style={{ backgroundColor: unit.status === 'Available' ? COLORS.successLight : COLORS.dangerLight, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+            <Text style={{ fontSize: 11, fontWeight: "700", color: unit.status === 'Available' ? COLORS.success : COLORS.danger }}>{unit.status || "Available"}</Text>
+          </View>
+        </View>
+        {(unit.floor || unit.notes) && (
+          <Text style={{ fontSize: 13, color: COLORS.textMuted }}>
+            {unit.floor ? `Floor: ${unit.floor}` : ''} {unit.floor && unit.notes ? ' • ' : ''} {unit.notes}
+          </Text>
+        )}
+      </View>
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <TouchableOpacity style={{ padding: 8, backgroundColor: COLORS.background, borderRadius: 10 }} onPress={() => setEditing(true)}>
+          <Edit2 size={16} color={COLORS.textMain} />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={{ padding: 8, backgroundColor: COLORS.dangerLight, borderRadius: 10 }} 
+          onPress={() => {
+            showAlert({
+              type: "warning",
+              title: "Delete Unit",
+              message: `Are you sure you want to delete Unit ${unit.room_number}?`,
+              primaryLabel: "Delete",
+              onPrimary: () => {
+                onDelete();
+              },
+              secondaryLabel: "Cancel"
+            });
+          }}
+        >
+          <Trash2 size={16} color={COLORS.danger} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 };
 
 export default function MyRooms() {
@@ -68,6 +299,7 @@ export default function MyRooms() {
 
   // Modal State
   const [editingRoom, setEditingRoom] = useState<any>(null);
+  const [managingUnitsForRoom, setManagingUnitsForRoom] = useState<any>(null);
   const [editLoading, setEditLoading] = useState(false);
   const [alert, setAlert] = useState<AlertState>(ALERT_HIDDEN);
   const [newImages, setNewImages] = useState<string[]>([]);
@@ -340,6 +572,13 @@ export default function MyRooms() {
             </View>
           </>
         )}
+
+        <TouchableOpacity 
+          style={{ marginTop: 16, paddingVertical: 12, backgroundColor: COLORS.primaryLight, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: "rgba(37, 99, 235, 0.2)" }}
+          onPress={() => setManagingUnitsForRoom(item)}
+        >
+          <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 14 }}>Manage Units</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -517,8 +756,19 @@ export default function MyRooms() {
         message={alert.message}
         primaryLabel={alert.primaryLabel}
         onPrimary={alert.onPrimary}
+        secondaryLabel={alert.secondaryLabel}
+        onSecondary={alert.onSecondary || dismissAlert}
         onDismiss={dismissAlert}
       />
+
+      {managingUnitsForRoom && (
+        <UnitsManagerModal 
+          room={managingUnitsForRoom} 
+          token={token} 
+          onClose={() => setManagingUnitsForRoom(null)} 
+          showAlert={showAlert} 
+        />
+      )}
     </View>
   );
 }

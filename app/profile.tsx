@@ -1,10 +1,12 @@
 import { useAuth } from "@/provider/AuthProvider";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
+import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
+  Dimensions,
   Image,
   Modal,
   SafeAreaView,
@@ -12,26 +14,29 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
+import BankDetails from "../components/BankDetails";
 import Header from "../components/Header";
 
+const { width } = Dimensions.get("window");
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
-// Professional minimal color palette
+// Professional modern color palette
 const COLORS = {
-  background: "#F3F4F6", // Light gray background for contrast
+  background: "#F8FAFC",
   cardBg: "#FFFFFF",
-  textPrimary: "#111827",
-  textSecondary: "#6B7280",
-  primaryBlue: "#2563EB",
-  border: "#E5E7EB",
-  danger: "#DC2626",
+  textPrimary: "#0F172A",
+  textSecondary: "#64748B",
+  primary: "#3B82F6",
+  primaryLight: "#EFF6FF",
+  border: "#E2E8F0",
+  danger: "#EF4444",
   dangerBg: "#FEF2F2",
-  warning: "#D97706",
-  warningBg: "#FEF3C7",
-  success: "#059669",
-  successBg: "#D1FAE5",
+  warning: "#F59E0B",
+  warningBg: "#FFFBEB",
+  success: "#10B981",
+  successBg: "#ECFDF5",
 };
 
 interface UserProfile {
@@ -48,6 +53,11 @@ interface UserProfile {
     kyc_document_type: string | null;
     kyc_rejection_reason: string | null;
     kyc_verification_status: string;
+    bank_name?: string | null;
+    account_number?: string | null;
+    ifsc_code?: string | null;
+    account_holder_name?: string | null;
+    branch_name?: string | null;
   };
 }
 
@@ -61,6 +71,7 @@ export default function Profile() {
   const [docModalVisible, setDocModalVisible] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
 
   const fetchProfile = async () => {
     setLoading(true);
@@ -70,11 +81,18 @@ export default function Profile() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setProfile(response.data.user);
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }).start();
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        })
+      ]).start();
     } catch (err: any) {
       setError(
         err?.response?.data?.error || err.message || "Failed to load profile."
@@ -100,19 +118,21 @@ export default function Profile() {
   };
 
   const getKycStatus = (status?: string) => {
-    if (status === "Verified") return { color: COLORS.success, bg: COLORS.successBg, text: "Verified" };
-    if (status === "Pending") return { color: COLORS.warning, bg: COLORS.warningBg, text: "Pending Review" };
-    return { color: COLORS.danger, bg: COLORS.dangerBg, text: "Action Required" };
+    if (status === "Verified") return { color: COLORS.success, bg: COLORS.successBg, text: "Verified", icon: "checkmark-circle" };
+    if (status === "Pending") return { color: COLORS.warning, bg: COLORS.warningBg, text: "Pending Review", icon: "time" };
+    return { color: COLORS.danger, bg: COLORS.dangerBg, text: "Action Required", icon: "alert-circle" };
   };
 
   if (!token) {
     return (
       <View style={[styles.centerContainer, { backgroundColor: COLORS.background }]}>
-        <Ionicons name="lock-closed" size={48} color={COLORS.textSecondary} />
+        <View style={styles.iconCircleLarge}>
+          <Ionicons name="lock-closed" size={40} color={COLORS.primary} />
+        </View>
         <Text style={styles.errorText}>Session Expired</Text>
-        <Text style={styles.errorSubText}>Please log in again to access your profile.</Text>
+        <Text style={styles.errorSubText}>Please log in again to access your secure profile.</Text>
         <TouchableOpacity style={styles.primaryBtn} onPress={() => { }} activeOpacity={0.8}>
-          <Text style={styles.primaryBtnText}>Log In</Text>
+          <Text style={styles.primaryBtnText}>Log In Securely</Text>
         </TouchableOpacity>
       </View>
     );
@@ -120,162 +140,219 @@ export default function Profile() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.cardBg} />
-      <Header />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="small" color={COLORS.primaryBlue} />
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.centerContainer}>
-          <Ionicons name="alert-circle" size={48} color={COLORS.danger} />
-          <Text style={styles.errorText}>Connection Error</Text>
-          <Text style={styles.errorSubText}>{error}</Text>
-          <TouchableOpacity style={styles.primaryBtn} onPress={fetchProfile} activeOpacity={0.8}>
-            <Text style={styles.primaryBtnText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      ) : profile ? (
-        <Animated.ScrollView
-          style={{ opacity: fadeAnim }}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Top Profile Summary */}
-          <View style={styles.profileHeader}>
-            <View style={styles.avatarWrapper}>
-              <Image source={getAvatarSource()} style={styles.avatar} />
-              <View style={[styles.statusIndicator, { backgroundColor: profile.is_active ? COLORS.success : COLORS.textSecondary }]} />
-            </View>
-            <Text style={styles.userName}>{profile.full_name}</Text>
-            <Text style={styles.userEmail}>{profile.email}</Text>
+      {/* Subtle Background Gradient Header */}
+      <LinearGradient
+        colors={[COLORS.primaryLight, COLORS.background]}
+        style={styles.headerBackground}
+      />
 
-            <View style={styles.roleBadge}>
-              <Text style={styles.roleText}>{profile.user_type}</Text>
-            </View>
+      <SafeAreaView style={styles.safeArea}>
+        <Header />
+
+        {loading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={[styles.loadingText, { color: COLORS.textSecondary }]}>Loading your profile...</Text>
           </View>
-
-          {/* Group: Personal Information */}
-          <Text style={styles.groupTitle}>Personal Information</Text>
-          <View style={styles.cardGroup}>
-            <InfoRow label="Phone Number" value={profile.phone || "Not Provided"} />
-            <View style={styles.divider} />
-            <InfoRow label="Age" value={profile.age ? `${profile.age}` : "Not Provided"} />
-            <View style={styles.divider} />
-            <InfoRow label="Account Status" value={profile.is_active ? "Active" : "Inactive"} valueColor={profile.is_active ? COLORS.success : COLORS.textSecondary} />
+        ) : error ? (
+          <View style={styles.centerContainer}>
+            <View style={[styles.iconCircleLarge, { backgroundColor: COLORS.dangerBg }]}>
+              <Ionicons name="cloud-offline" size={40} color={COLORS.danger} />
+            </View>
+            <Text style={[styles.errorText, { color: COLORS.textPrimary }]}>Connection Error</Text>
+            <Text style={[styles.errorSubText, { color: COLORS.textSecondary }]}>{error}</Text>
+            <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: COLORS.primary }]} onPress={fetchProfile} activeOpacity={0.8}>
+              <Text style={[styles.primaryBtnText, { color: COLORS.cardBg }]}>Try Again</Text>
+            </TouchableOpacity>
           </View>
+        ) : profile ? (
+          <Animated.ScrollView
+            style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Top Profile Summary Card */}
+            <View style={styles.profileCard}>
+              <View style={styles.avatarContainer}>
+                <Image source={getAvatarSource()} style={styles.avatar} />
+                <View style={[styles.activeIndicator, { backgroundColor: profile.is_active ? COLORS.success : COLORS.textSecondary }]} />
+              </View>
 
-          {/* Group: Verification (KYC) */}
-          <Text style={styles.groupTitle}>Verification & Security</Text>
-          <View style={styles.cardGroup}>
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>KYC Status</Text>
-              <View style={[styles.statusPill, { backgroundColor: getKycStatus(profile.host_attributes?.kyc_verification_status).bg }]}>
-                <Text style={[styles.statusPillText, { color: getKycStatus(profile.host_attributes?.kyc_verification_status).color }]}>
-                  {getKycStatus(profile.host_attributes?.kyc_verification_status).text}
-                </Text>
+              <Text style={styles.userName}>{profile.full_name}</Text>
+              <Text style={styles.userEmail}>{profile.email}</Text>
+
+              <View style={styles.roleBadge}>
+                <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} style={{ marginRight: 4 }} />
+                <Text style={styles.roleText}>{profile.user_type}</Text>
               </View>
             </View>
-            <View style={styles.divider} />
-            <InfoRow label="Document Type" value={profile.host_attributes?.kyc_document_type || "None"} />
 
-            {profile.host_attributes?.kyc_document_image_url && (
-              <>
+            {/* Quick Stats or Highlights */}
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <View style={[styles.iconCircle, { backgroundColor: COLORS.successBg }]}>
+                  <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+                </View>
+                <Text style={styles.statValue}>{profile.is_active ? "Active" : "Inactive"}</Text>
+                <Text style={styles.statLabel}>Account Status</Text>
+              </View>
+              <View style={styles.statCard}>
+                <View style={[styles.iconCircle, { backgroundColor: getKycStatus(profile.host_attributes?.kyc_verification_status).bg }]}>
+                  <Ionicons name={getKycStatus(profile.host_attributes?.kyc_verification_status).icon as any} size={20} color={getKycStatus(profile.host_attributes?.kyc_verification_status).color} />
+                </View>
+                <Text style={styles.statValue} numberOfLines={1}>{getKycStatus(profile.host_attributes?.kyc_verification_status).text}</Text>
+                <Text style={styles.statLabel}>KYC Status</Text>
+              </View>
+            </View>
+
+            {/* Group: Personal Information */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Personal Information</Text>
+              <View style={styles.cardGroup}>
+                <InfoRow icon="call-outline" label="Phone Number" value={profile.phone || "Not Provided"} />
                 <View style={styles.divider} />
-                <TouchableOpacity
-                  style={[styles.row, { paddingVertical: 14 }]}
-                  onPress={() => setDocModalVisible(true)}
-                  activeOpacity={0.6}
-                >
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Ionicons name="document-text-outline" size={20} color={COLORS.primaryBlue} style={{ marginRight: 8 }} />
-                    <Text style={[styles.rowLabel, { color: COLORS.primaryBlue, fontWeight: "500" }]}>View Uploaded Document</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-
-
-          {profile.host_attributes?.kyc_rejection_reason && (
-            <View style={styles.alertBox}>
-              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-                <Ionicons name="warning" size={18} color={COLORS.danger} style={{ marginRight: 6 }} />
-                <Text style={styles.alertTitle}>Verification Rejected</Text>
+                <InfoRow icon="calendar-outline" label="Age" value={profile.age ? `${profile.age} years` : "Not Provided"} />
               </View>
-              <Text style={styles.alertText}>{profile.host_attributes.kyc_rejection_reason}</Text>
             </View>
-          )}
 
-          {/* Group: Settings */}
-          <Text style={styles.groupTitle}>Settings</Text>
-          <View style={styles.cardGroup}>
-            <ActionRow label="Edit Profile Details" icon="create-outline" />
-            <View style={styles.divider} />
-            <ActionRow label="Notification Preferences" icon="notifications-outline" />
-            <View style={styles.divider} />
-            <ActionRow label="Change Password" icon="lock-closed-outline" />
-          </View>
+            {/* Group: Verification (KYC) */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Verification & Security</Text>
+              <View style={styles.cardGroup}>
+                <InfoRow icon="document-text-outline" label="Document Type" value={profile.host_attributes?.kyc_document_type || "None"} />
 
-          {/* Logout Button */}
-          <TouchableOpacity style={styles.logoutBtn} onPress={() => { }} activeOpacity={0.7}>
-            <Text style={styles.logoutBtnText}>Log Out</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.versionText}>App Version 1.0.0</Text>
-
-          {/* Document Viewer Modal */}
-          {profile.host_attributes?.kyc_document_image_url && (
-            <Modal
-              visible={docModalVisible}
-              transparent={true}
-              animationType="fade"
-              onRequestClose={() => setDocModalVisible(false)}
-            >
-              <View style={styles.modalOverlay}>
-                <SafeAreaView style={styles.modalContent}>
-                  <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>{profile.host_attributes.kyc_document_type} Document</Text>
-                    <TouchableOpacity onPress={() => setDocModalVisible(false)} style={styles.modalCloseBtn}>
-                      <Ionicons name="close" size={24} color={COLORS.textPrimary} />
+                {profile.host_attributes?.kyc_document_image_url && (
+                  <>
+                    <View style={styles.divider} />
+                    <TouchableOpacity
+                      style={styles.actionRow}
+                      onPress={() => setDocModalVisible(true)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.actionRowLeft}>
+                        <View style={[styles.iconCircle, { backgroundColor: COLORS.primaryLight, marginRight: 12 }]}>
+                          <Ionicons name="eye-outline" size={18} color={COLORS.primary} />
+                        </View>
+                        <Text style={styles.actionRowLabelPrimary}>View Uploaded Document</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
                     </TouchableOpacity>
-                  </View>
-                  <View style={styles.modalImageContainer}>
-                    <Image
-                      source={{ uri: `${API_BASE_URL}${profile.host_attributes.kyc_document_image_url}` }}
-                      style={styles.modalImage}
-                      resizeMode="contain"
-                    />
-                  </View>
-                </SafeAreaView>
+                  </>
+                )}
               </View>
-            </Modal>
-          )}
 
-        </Animated.ScrollView>
-      ) : null}
+              {profile.host_attributes?.kyc_rejection_reason && (
+                <View style={styles.alertBox}>
+                  <View style={styles.alertHeader}>
+                    <Ionicons name="warning" size={20} color={COLORS.danger} style={{ marginRight: 8 }} />
+                    <Text style={styles.alertTitle}>Verification Rejected</Text>
+                  </View>
+                  <Text style={styles.alertText}>{profile.host_attributes.kyc_rejection_reason}</Text>
+                  <TouchableOpacity style={styles.alertAction}>
+                    <Text style={styles.alertActionText}>Update Document</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* Group: Bank Details */}
+            <View style={styles.sectionContainer}>
+              <BankDetails
+                profile={profile}
+                token={token}
+                onUpdate={(updatedData) => {
+                  setProfile((prev: any) => prev ? {
+                    ...prev,
+                    host_attributes: {
+                      ...prev.host_attributes,
+                      ...updatedData
+                    }
+                  } : prev);
+                }}
+              />
+            </View>
+
+            {/* Group: Settings */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Settings & Preferences</Text>
+              <View style={styles.cardGroup}>
+                <ActionRow icon="create-outline" label="Edit Profile Details" />
+                <View style={styles.divider} />
+                <ActionRow icon="notifications-outline" label="Notification Preferences" />
+                <View style={styles.divider} />
+                <ActionRow icon="lock-closed-outline" label="Change Password" />
+              </View>
+            </View>
+
+            {/* Logout Button */}
+            <TouchableOpacity style={styles.logoutBtn} onPress={() => { }} activeOpacity={0.8}>
+              <Ionicons name="log-out-outline" size={20} color={COLORS.danger} style={{ marginRight: 8 }} />
+              <Text style={styles.logoutBtnText}>Log Out</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.versionText}>App Version 1.0.0</Text>
+
+            {/* Document Viewer Modal */}
+            {profile.host_attributes?.kyc_document_image_url && (
+              <Modal
+                visible={docModalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setDocModalVisible(false)}
+              >
+                <View style={styles.modalOverlay}>
+                  <SafeAreaView style={styles.modalContent}>
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>{profile.host_attributes.kyc_document_type} Document</Text>
+                      <TouchableOpacity onPress={() => setDocModalVisible(false)} style={styles.modalCloseBtn}>
+                        <View style={styles.closeIconBg}>
+                          <Ionicons name="close" size={20} color={COLORS.textPrimary} />
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.modalImageContainer}>
+                      <Image
+                        source={{ uri: `${API_BASE_URL}${profile.host_attributes.kyc_document_image_url}` }}
+                        style={styles.modalImage}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  </SafeAreaView>
+                </View>
+              </Modal>
+            )}
+
+          </Animated.ScrollView>
+        ) : null}
+      </SafeAreaView>
     </View>
   );
 }
 
 // Reusable Components
-const InfoRow = ({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) => (
+const InfoRow = ({ label, value, icon }: { label: string; value: string; icon: any }) => (
   <View style={styles.row}>
-    <Text style={styles.rowLabel}>{label}</Text>
-    <Text style={[styles.rowValue, valueColor ? { color: valueColor } : {}]}>{value}</Text>
+    <View style={styles.rowLeft}>
+      <View style={[styles.iconCircle, { backgroundColor: COLORS.background, marginRight: 12 }]}>
+        <Ionicons name={icon} size={18} color={COLORS.textSecondary} />
+      </View>
+      <Text style={styles.rowLabel}>{label}</Text>
+    </View>
+    <Text style={styles.rowValue}>{value}</Text>
   </View>
 );
 
 const ActionRow = ({ label, icon }: { label: string; icon: any }) => (
-  <TouchableOpacity style={styles.actionRow} activeOpacity={0.6}>
+  <TouchableOpacity style={styles.actionRow} activeOpacity={0.7}>
     <View style={styles.actionRowLeft}>
-      <Ionicons name={icon} size={20} color={COLORS.textSecondary} style={{ marginRight: 12 }} />
+      <View style={[styles.iconCircle, { backgroundColor: COLORS.background, marginRight: 12 }]}>
+        <Ionicons name={icon} size={18} color={COLORS.textSecondary} />
+      </View>
       <Text style={styles.actionRowLabel}>{label}</Text>
     </View>
-    <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
+    <Ionicons name="chevron-forward" size={20} color={COLORS.border} />
   </TouchableOpacity>
 );
 
@@ -285,7 +362,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  safeArea: {
+    flex: 1,
+  },
+  headerBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 250,
+  },
   scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
     paddingBottom: 40,
   },
   centerContainer: {
@@ -294,134 +383,162 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 24,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    fontWeight: "500",
-  },
-  errorText: {
-    marginTop: 16,
-    fontSize: 18,
-    color: COLORS.textPrimary,
-    fontWeight: "600",
-  },
-  errorSubText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    textAlign: "center",
-    marginBottom: 24,
-  },
-  primaryBtn: {
-    backgroundColor: COLORS.primaryBlue,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  primaryBtnText: {
-    color: COLORS.cardBg,
-    fontWeight: "600",
-    fontSize: 15,
-  },
 
-  // Profile Header
-  profileHeader: {
+  // Header Profile Card
+  profileCard: {
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 24,
+    padding: 24,
     alignItems: "center",
-    paddingVertical: 32,
-    backgroundColor: COLORS.background,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    elevation: 5,
+    marginBottom: 20,
   },
-  avatarWrapper: {
+  avatarContainer: {
     position: "relative",
     marginBottom: 16,
   },
   avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: COLORS.border,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 4,
+    borderColor: COLORS.cardBg,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
-  statusIndicator: {
+  activeIndicator: {
     position: "absolute",
     bottom: 4,
     right: 4,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 3,
-    borderColor: COLORS.background,
+    borderColor: COLORS.cardBg,
   },
   userName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "700",
     color: COLORS.textPrimary,
     letterSpacing: -0.5,
+    marginBottom: 4,
   },
   userEmail: {
     fontSize: 15,
     color: COLORS.textSecondary,
-    marginTop: 4,
+    marginBottom: 12,
   },
   roleBadge: {
-    marginTop: 12,
-    backgroundColor: COLORS.border,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
   roleText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
-    color: COLORS.textPrimary,
+    color: COLORS.primary,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
 
-  // Groups and Cards
-  groupTitle: {
-    fontSize: 13,
-    fontWeight: "600",
+  // Stats Row
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 24,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 20,
+    padding: 16,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  statValue: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
     color: COLORS.textSecondary,
+    fontWeight: "500",
+  },
+
+  // Sections
+  sectionContainer: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
     textTransform: "uppercase",
-    letterSpacing: 1,
-    marginLeft: 16,
-    marginBottom: 8,
-    marginTop: 24,
+    letterSpacing: 0.8,
+    marginLeft: 8,
+    marginBottom: 12,
   },
   cardGroup: {
     backgroundColor: COLORS.cardBg,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: COLORS.border,
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    elevation: 2,
+    overflow: "hidden",
   },
   divider: {
     height: 1,
     backgroundColor: COLORS.border,
-    marginLeft: 16, // Indented divider like iOS
+    marginLeft: 56, // Align with text past the icon
   },
+
+  // Rows
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 14,
+    paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: COLORS.cardBg,
+  },
+  rowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   rowLabel: {
     fontSize: 15,
+    fontWeight: "500",
     color: COLORS.textPrimary,
   },
   rowValue: {
     fontSize: 15,
     color: COLORS.textSecondary,
+    fontWeight: "400",
   },
   actionRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 14,
+    paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: COLORS.cardBg,
   },
   actionRowLeft: {
     flexDirection: "row",
@@ -429,67 +546,134 @@ const styles = StyleSheet.create({
   },
   actionRowLabel: {
     fontSize: 15,
+    fontWeight: "500",
     color: COLORS.textPrimary,
   },
-
-  // Pills and Alerts
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusPillText: {
-    fontSize: 12,
+  actionRowLabelPrimary: {
+    fontSize: 15,
     fontWeight: "600",
+    color: COLORS.primary,
   },
+
+  // UI Elements
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  iconCircleLarge: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.primaryLight,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+
+  // Alerts
   alertBox: {
-    marginHorizontal: 16,
     marginTop: 16,
     backgroundColor: COLORS.dangerBg,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "#FECACA",
   },
+  alertHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
   alertTitle: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
     color: COLORS.danger,
   },
   alertText: {
     fontSize: 14,
     color: COLORS.danger,
     lineHeight: 20,
+    opacity: 0.9,
+    marginBottom: 12,
+  },
+  alertAction: {
+    alignSelf: "flex-start",
+    backgroundColor: "#FCA5A5",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  alertActionText: {
+    color: COLORS.dangerBg,
+    fontWeight: "600",
+    fontSize: 13,
   },
 
-  // Logout
-  logoutBtn: {
-    marginTop: 32,
-    marginHorizontal: 16,
-    backgroundColor: COLORS.cardBg,
+  // Buttons
+  primaryBtn: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 32,
     paddingVertical: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderRadius: 16,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  primaryBtnText: {
+    color: COLORS.cardBg,
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  logoutBtn: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.dangerBg,
+    paddingVertical: 16,
+    borderRadius: 20,
+    marginTop: 8,
   },
   logoutBtnText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: COLORS.danger,
   },
 
+  // Typography
+  loadingText: {
+    marginTop: 16,
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  errorText: {
+    fontSize: 22,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  errorSubText: {
+    fontSize: 15,
+    textAlign: "center",
+    marginBottom: 32,
+    lineHeight: 22,
+  },
   versionText: {
     textAlign: "center",
     fontSize: 13,
     color: COLORS.textSecondary,
-    marginTop: 24,
+    marginTop: 32,
+    marginBottom: 16,
+    fontWeight: "500",
   },
 
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.85)",
+    backgroundColor: "rgba(15, 23, 42, 0.9)",
     justifyContent: "center",
   },
   modalContent: {
@@ -501,23 +685,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: COLORS.cardBg,
+    backgroundColor: "transparent",
   },
   modalTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
-    color: COLORS.textPrimary,
+    color: COLORS.cardBg,
   },
   modalCloseBtn: {
     padding: 4,
+  },
+  closeIconBg: {
+    backgroundColor: COLORS.cardBg,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalImageContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    padding: 20,
   },
   modalImage: {
     width: "100%",
     height: "100%",
+    borderRadius: 16,
   },
 });

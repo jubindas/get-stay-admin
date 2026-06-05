@@ -1,14 +1,30 @@
 import { useAuth } from "@/provider/AuthProvider";
+
+
 import { Ionicons } from "@expo/vector-icons";
+
 import DateTimePicker from "@react-native-community/datetimepicker";
+
 import axios from "axios";
-import { 
-  Calendar, CheckCircle, Clock, Plus, X, XCircle, 
-  MapPin, CreditCard, Receipt, Users, BedDouble, ChevronRight 
+
+import { LinearGradient } from "expo-linear-gradient";
+
+import {
+  BedDouble,
+  CheckCircle, Clock,
+  CreditCard,
+  MapPin,
+  Plus,
+  Receipt, Users,
+  X, XCircle
 } from "lucide-react-native";
-import React, { useEffect, useState, useRef } from "react";
+
+import React, { useEffect, useRef, useState } from "react";
+
 import {
   ActivityIndicator,
+  Animated,
+  Dimensions,
   FlatList,
   Modal,
   RefreshControl,
@@ -18,16 +34,15 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  Animated,
-  Dimensions
+  View
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 
 import AlertPopUp, { AlertType } from "@/components/AlertPopUp";
+
 import Header from "../components/Header";
 
 const { width } = Dimensions.get("window");
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 const COLORS = {
@@ -67,7 +82,7 @@ const ALERT_HIDDEN: AlertState = {
   message: "",
 };
 
-// Animated Card Component for the list
+
 const AnimatedBookingCard = ({ item, index, onPress }: { item: any, index: number, onPress: () => void }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -110,8 +125,8 @@ const AnimatedBookingCard = ({ item, index, onPress }: { item: any, index: numbe
 
   return (
     <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-      <TouchableOpacity 
-        style={styles.bookingCard} 
+      <TouchableOpacity
+        style={styles.bookingCard}
         activeOpacity={0.9}
         onPress={onPress}
       >
@@ -126,12 +141,12 @@ const AnimatedBookingCard = ({ item, index, onPress }: { item: any, index: numbe
             </View>
             {renderStatusBadge(item.booking_status)}
           </View>
-          
+
           <View style={styles.cardLocationRow}>
             <MapPin size={14} color={COLORS.textMuted} />
             <Text style={styles.bookingCardSubtitle} numberOfLines={1}>{item.property?.property_name}</Text>
           </View>
-          
+
           <View style={styles.bookingCardFooter}>
             <View style={styles.dateBlock}>
               <Text style={styles.dateLabel}>Check-in</Text>
@@ -403,7 +418,7 @@ export default function BookRooms() {
             onPress={() => setShowForm(true)}
           >
             <Plus size={18} color="#FFF" />
-            <Text style={styles.addBtnText}>Walk-in</Text>
+            <Text style={styles.addBtnText}>Book</Text>
           </TouchableOpacity>
         </LinearGradient>
 
@@ -445,9 +460,9 @@ export default function BookRooms() {
                 <X size={24} color={COLORS.textMain} />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-              
+
               {/* Grand Total & Status Overview */}
               <LinearGradient colors={[COLORS.primaryMain, COLORS.primary]} style={styles.overviewCard}>
                 <View style={styles.overviewRow}>
@@ -498,7 +513,7 @@ export default function BookRooms() {
                   <Text style={styles.modalSectionTitle}>Property & Rooms</Text>
                 </View>
                 <Text style={styles.propertyNameText}>{selectedBooking.property?.property_name}</Text>
-                
+
                 {selectedBooking.booking_items?.map((item: any, idx: number) => (
                   <View key={item.id || idx} style={styles.roomItemCard}>
                     <Text style={styles.roomItemName}>
@@ -871,20 +886,8 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 4,
   },
-  addBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.primaryMain,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 30,
-    gap: 6,
-    shadowColor: COLORS.primaryMain,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
+  addBtn: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.primaryMain, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, gap: 6 },
+
   addBtnText: {
     color: "#FFF",
     fontWeight: "600",
@@ -1032,7 +1035,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 24, fontWeight: "800", color: COLORS.textMain, letterSpacing: -0.5 },
   closeBtn: { padding: 8, backgroundColor: COLORS.card, borderRadius: 20, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   modalContent: { padding: 20, paddingBottom: 60, backgroundColor: COLORS.background },
-  
+
   overviewCard: {
     borderRadius: 20,
     padding: 24,

@@ -122,6 +122,103 @@ const INITIAL_ROOM: RoomEntry = {
   check_out_time: "11:00",
 };
 
+const RoomUnitManager = ({ room, token }: { room: any, token: string | null }) => {
+  const [units, setUnits] = useState([{ room_number: "", floor: "", notes: "", status: "Available", saved: false }]);
+  const [saving, setSaving] = useState(false);
+
+  const addUnitField = () => setUnits([...units, { room_number: "", floor: "", notes: "", status: "Available", saved: false }]);
+
+  const updateUnit = (index: number, field: string, value: string) => {
+    const newUnits = [...units];
+    newUnits[index] = { ...newUnits[index], [field]: value };
+    setUnits(newUnits);
+  };
+
+  const removeUnit = (index: number) => {
+    const newUnits = units.filter((_, i) => i !== index);
+    setUnits(newUnits);
+  };
+
+  const saveUnits = async () => {
+    setSaving(true);
+
+    // Filter out already saved units and ones missing room_number
+    const unitsToSave = units.filter(u => !u.saved && u.room_number);
+
+    if (unitsToSave.length === 0) {
+      setSaving(false);
+      return;
+    }
+
+    try {
+      const res = await axios.post(`${API_BASE_URL}/api/host/room-units/room-details/${room.id}/units/bulk`, {
+        units: unitsToSave.map(u => ({
+          room_number: u.room_number,
+          floor: u.floor,
+          notes: u.notes,
+          status: u.status
+        }))
+      }, { headers: { Authorization: `Bearer ${token}` } });
+
+      console.log("Bulk created units:", JSON.stringify(res.data, null, 2));
+
+      setUnits(prev => prev.map(u =>
+        (u.room_number && !u.saved) ? { ...u, saved: true } : u
+      ));
+    } catch (e: any) {
+      console.error("Failed to save units in bulk:", e.response?.data || e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <View style={styles.roomCard}>
+      <View style={styles.roomCardHeader}>
+        <Text style={styles.roomCardTitle}>
+          Assign Units for Room ID: {room.id.split('-')[0]}
+        </Text>
+      </View>
+
+      {units.map((unit, index) => (
+        <View key={index} style={{ marginBottom: 16, padding: 12, backgroundColor: COLORS.background, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 12 }}>
+            <Text style={{ fontSize: 14, fontWeight: "600", color: COLORS.textActive }}>Unit #{index + 1}</Text>
+            {unit.saved ? (
+              <View style={{ backgroundColor: COLORS.successLight, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                <Text style={{ fontSize: 11, color: COLORS.success, fontWeight: "700" }}>SAVED</Text>
+              </View>
+            ) : units.length > 1 && (
+              <TouchableOpacity onPress={() => removeUnit(index)}>
+                <Trash2 size={16} color={COLORS.danger} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.roomRow}>
+            <View style={styles.roomRowField}>
+              <Field label="Room No." value={unit.room_number} onChange={(val: string) => updateUnit(index, "room_number", val)} placeholder="101" />
+            </View>
+            <View style={styles.roomRowField}>
+              <Field label="Floor" value={unit.floor} onChange={(val: string) => updateUnit(index, "floor", val)} placeholder="1st" optional />
+            </View>
+          </View>
+          <Field label="Notes" value={unit.notes} onChange={(val: string) => updateUnit(index, "notes", val)} placeholder="Near elevator" optional />
+        </View>
+      ))}
+
+      <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
+        <TouchableOpacity style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: COLORS.primaryLight, alignItems: "center", justifyContent: "center" }} onPress={addUnitField}>
+          <Text style={{ color: COLORS.primary, fontWeight: "600" }}>+ Add Another</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: COLORS.primary, alignItems: "center", justifyContent: "center", opacity: saving ? 0.7 : 1 }} onPress={saveUnits} disabled={saving}>
+          <Text style={{ color: "#FFF", fontWeight: "600" }}>{saving ? "Saving..." : "Save Units"}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
 // ─── UI Components ────────────────────────────────────────────────────────────
 
 function Section({ title, icon: Icon, children }: any) {
@@ -306,6 +403,8 @@ export default function AddRooms() {
   const { propertyId: urlPropertyId } = useLocalSearchParams<{ propertyId: string }>();
 
   const [alert, setAlert] = useState<AlertState>(ALERT_HIDDEN);
+  const [createdRooms, setCreatedRooms] = useState<any[]>([]);
+  const [showUnitsPhase, setShowUnitsPhase] = useState(false);
   const dismissAlert = () => setAlert((a) => ({ ...a, visible: false }));
   const showAlert = (config: Omit<AlertState, "visible">) =>
     setAlert({ ...config, visible: true });
@@ -437,18 +536,25 @@ export default function AddRooms() {
           },
         }
       );
-      showAlert({
-        type: "success",
-        title: "Rooms Added!",
-        message: "Your rooms have been successfully configured and added to the property.",
-        primaryLabel: "Continue",
-        onPrimary: () => {
-          setRooms([{ ...INITIAL_ROOM }]);
-          setRoomImages([]);
-          setPropertyId("");
-          dismissAlert();
-        }
-      });
+
+      const returnedRooms = res.data?.data || res.data?.rooms || (Array.isArray(res.data) ? res.data : []);
+      if (returnedRooms && returnedRooms.length > 0) {
+        setCreatedRooms(returnedRooms);
+        setShowUnitsPhase(true);
+      } else {
+        showAlert({
+          type: "success",
+          title: "Rooms Added!",
+          message: "Your rooms have been successfully configured and added to the property.",
+          primaryLabel: "Continue",
+          onPrimary: () => {
+            setRooms([{ ...INITIAL_ROOM }]);
+            setRoomImages([]);
+            setPropertyId("");
+            dismissAlert();
+          }
+        });
+      }
     } catch (error: any) {
       showAlert({
         type: "error",
@@ -645,6 +751,40 @@ export default function AddRooms() {
         onSecondary={alert.onSecondary}
         onDismiss={dismissAlert}
       />
+
+      <Modal visible={showUnitsPhase} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { }}>
+        <View style={styles.mainContainer}>
+          <Header />
+          <ScrollView contentContainerStyle={styles.content}>
+            <Text style={styles.pageTitle}>Phase 2: Add Room Units</Text>
+            <Text style={styles.pageSubtitle}>Assign physical room numbers for your newly created room categories.</Text>
+
+            {createdRooms.map((room, idx) => (
+              <RoomUnitManager key={room.id || idx} room={room} token={token} />
+            ))}
+
+            <TouchableOpacity
+              style={styles.submitButton}
+              onPress={() => {
+                setShowUnitsPhase(false);
+                setCreatedRooms([]);
+                setRooms([{ ...INITIAL_ROOM }]);
+                setRoomImages([]);
+                setPropertyId("");
+                showAlert({
+                  type: "success",
+                  title: "Setup Complete",
+                  message: "Your rooms and units have been successfully configured.",
+                  primaryLabel: "OK",
+                  onPrimary: dismissAlert
+                });
+              }}
+            >
+              <Text style={styles.submitText}>Finish & Exit</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
