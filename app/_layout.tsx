@@ -41,6 +41,7 @@ export default function RootLayout() {
           <Stack.Screen name="book-rooms" />
           <Stack.Screen name="add-property" />
           <Stack.Screen name="my-rooms" />
+          <Stack.Screen name="manage-rates" />
         </Stack>
       </NavigationGuard>
     </AuthProvider>
