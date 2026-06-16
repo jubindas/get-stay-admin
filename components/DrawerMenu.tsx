@@ -1,11 +1,11 @@
 
-import { Feather, MaterialCommunityIcons } from "@expo/vector-icons"; 
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { AccountSwitcher } from "./AccountSwitcher";
 
 import { router, usePathname } from "expo-router";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import {
   Animated,
@@ -108,26 +108,37 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, setVisible }) => {
             pathname={pathname}
             onPress={() => navigate("/dashboard")}
           />
-          <MenuItem
-            icon="home-plus"
+
+          <ExpandableMenuGroup
+            icon="tools"
             iconFamily="material"
-            label="Add Properties"
-            path="/add-property"
+            label="Master Setup"
             pathname={pathname}
-            onPress={() => navigate("/add-property")}
-          />
-          <MenuItem
-            icon="list"
-            label="My Rooms"
-            path="/my-rooms"
-            pathname={pathname}
-            onPress={() => navigate("/my-rooms")}
-          />
+            paths={["/add-property", "/my-rooms"]}
+          >
+            <MenuItem
+              icon="home-plus"
+              iconFamily="material"
+              label="Add Properties"
+              path="/add-property"
+              pathname={pathname}
+              onPress={() => navigate("/add-property")}
+              isSubItem
+            />
+            <MenuItem
+              icon="list"
+              label="My Rooms"
+              path="/my-rooms"
+              pathname={pathname}
+              onPress={() => navigate("/my-rooms")}
+              isSubItem
+            />
+          </ExpandableMenuGroup>
 
           <MenuItem
             icon="bed"
             iconFamily="material"
-            label="Book Rooms"
+            label="Bookings"
             path="/book-rooms"
             pathname={pathname}
             onPress={() => navigate("/book-rooms")}
@@ -136,14 +147,14 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, setVisible }) => {
 
           <MenuItem
             icon="calendar"
-            label="Today's Check In"
+            label="Check In"
             path="/todays-check-in"
             pathname={pathname}
             onPress={() => navigate("/todays-check-in")}
           />
           <MenuItem
             icon="grid"
-            label="Room Management"
+            label="Manage Rooms"
             path="/room-category"
             pathname={pathname}
             onPress={() => navigate("/room-category")}
@@ -184,7 +195,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, setVisible }) => {
 };
 
 // 2. Updated MenuItem to accept and switch between Feather and Material icon sets
-const MenuItem = ({ icon, label, path, pathname, onPress, isLogout, iconFamily }: any) => {
+const MenuItem = ({ icon, label, path, pathname, onPress, isLogout, iconFamily, isSubItem }: any) => {
   const isActive = pathname === path;
   const iconColor = isLogout
     ? COLORS.danger
@@ -194,7 +205,11 @@ const MenuItem = ({ icon, label, path, pathname, onPress, isLogout, iconFamily }
 
   return (
     <TouchableOpacity
-      style={[styles.menuItem, isActive && styles.activeMenuItem]}
+      style={[
+        styles.menuItem,
+        isActive && styles.activeMenuItem,
+        isSubItem && styles.subMenuItem
+      ]}
       onPress={onPress}
       activeOpacity={0.6}
     >
@@ -212,11 +227,45 @@ const MenuItem = ({ icon, label, path, pathname, onPress, isLogout, iconFamily }
           styles.menuText,
           isActive && styles.activeMenuText,
           isLogout && { color: COLORS.danger },
+          isSubItem && styles.subMenuText
         ]}
       >
         {label}
       </Text>
     </TouchableOpacity>
+  );
+};
+
+const ExpandableMenuGroup = ({ icon, iconFamily, label, children, pathname, paths }: any) => {
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!paths.includes(pathname)) {
+      setExpanded(false);
+    }
+  }, [pathname]);
+
+  return (
+    <View style={styles.menuGroup}>
+      <TouchableOpacity
+        style={styles.menuGroupHeader}
+        onPress={() => setExpanded(!expanded)}
+        activeOpacity={0.6}
+      >
+        {iconFamily === "material" ? (
+          <MaterialCommunityIcons name={icon} size={22} color={"#000"} />
+        ) : (
+          <Feather name={icon} size={22} color={"#000"} />
+        )}
+        <Text style={styles.menuGroupText}>{label}</Text>
+      </TouchableOpacity>
+
+      {expanded && (
+        <View style={styles.menuGroupContent}>
+          {children}
+        </View>
+      )}
+    </View>
   );
 };
 
@@ -289,6 +338,32 @@ const styles = StyleSheet.create({
   activeMenuText: {
     color: COLORS.activeText,
     fontWeight: "700",
+  },
+  subMenuItem: {
+    paddingVertical: 10,
+    marginBottom: 2,
+  },
+  subMenuText: {
+    fontSize: 15,
+  },
+  menuGroup: {
+    marginBottom: 4,
+  },
+  menuGroupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginHorizontal: 12,
+  },
+  menuGroupText: {
+    marginLeft: 16,
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#000",
+  },
+  menuGroupContent: {
+    paddingLeft: 16,
   },
   divider: {
     height: 1,

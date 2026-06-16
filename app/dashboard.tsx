@@ -43,7 +43,7 @@ const COLORS = {
 };
 
 export default function ZenDashboard() {
-  const [activeTab, setActiveTab] = useState("Bookings");
+  const [activeTab, setActiveTab] = useState("Occupancy");
   const [properties, setProperties] = useState<any[]>([]); // New state to hold properties
   const [loading, setLoading] = useState(true); // Track loading status
 
@@ -120,35 +120,41 @@ export default function ZenDashboard() {
           transform: [{ translateY: slideAnim }],
         }}
       >
+        <View style={styles.todaysHeaderContainer}>
+          <Text style={styles.todaysHeaderText}>Today's</Text>
+        </View>
         <View style={styles.statsGrid}>
           <StatusCard
             icon="log-in-outline"
-            label="Check-in"
-            value="0/2"
+            label="CHECK-IN"
+            value="2"
             color={COLORS.primaryBlue}
             bgColor="#EDF2FF"
-          />
-          <StatusCard
-            icon="bed-outline"
-            label="Stay"
-            value="8"
-            color={COLORS.orangeChart}
-            bgColor="#FFF7ED"
-          />
-          <StatusCard
-            icon="log-out-outline"
-            label="Check-out"
-            value="4/4"
-            color={COLORS.pinkCheckOut}
-            bgColor="#FEF2F2"
-            isUrgent
+            onPress={() => router.push("/todays-check-in")}
           />
           <StatusCard
             icon="checkmark-circle-outline"
-            label="Vacant"
+            label="VACANT"
             value="2"
             color={COLORS.tealCheck}
             bgColor="#E6FFFA"
+            onPress={() => router.push("/room-category")}
+          />
+          <StatusCard
+            icon="bed-outline"
+            label="Booked"
+            value="8"
+            color={COLORS.orangeChart}
+            bgColor="#FFF7ED"
+            onPress={() => router.push("/book-rooms")}
+          />
+          <StatusCard
+            icon="log-out-outline"
+            label="Revenue"
+            value="₹25000"
+            color={COLORS.pinkCheckOut}
+            bgColor="#FEF2F2"
+            onPress={() => router.push("/manage-rates")}
           />
         </View>
 
@@ -179,7 +185,7 @@ export default function ZenDashboard() {
             <View style={styles.analyticsHeader}>
               <Text style={styles.sectionTitle}>Booking Analytics</Text>
               <View style={styles.subTabContainer}>
-                {["Bookings", "Revenue", "Occupancy"].map((tab) => (
+                {["Occupancy", "Revenue", "Bookings"].map((tab) => (
                   <TouchableOpacity
                     key={tab}
                     onPress={() => setActiveTab(tab)}
@@ -205,13 +211,29 @@ export default function ZenDashboard() {
           </>
         )}
       </Animated.ScrollView>
+
+      {/* Floating Action Button */}
+      <TouchableOpacity
+        style={styles.fabWrapper}
+        onPress={() => router.push('/book-rooms')}
+        activeOpacity={0.85}
+      >
+        <View style={styles.fabCircle}>
+          <Ionicons name="add" size={32} color={COLORS.white} />
+        </View>
+        <Text style={styles.fabText}>Book Room</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
-function StatusCard({ icon, label, value, color, bgColor, isUrgent }: any) {
+function StatusCard({ icon, label, value, color, bgColor, isUrgent, onPress }: any) {
   return (
-    <View style={[styles.statCard, { borderLeftColor: color }]}>
+    <TouchableOpacity 
+      style={[styles.statCard, { borderLeftColor: color }]}
+      activeOpacity={0.7}
+      onPress={onPress}
+    >
       <View style={[styles.statIconContainer, { backgroundColor: bgColor }]}>
         <Ionicons name={icon} size={20} color={color} />
       </View>
@@ -226,7 +248,7 @@ function StatusCard({ icon, label, value, color, bgColor, isUrgent }: any) {
           {value}
         </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -240,7 +262,45 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     flexGrow: 1,
   },
-
+  todaysHeaderContainer: {
+    paddingHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  todaysHeaderText: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#000',
+  },
+  fabWrapper: {
+    position: 'absolute',
+    bottom: 25,
+    right: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99,
+  },
+  fabCircle: {
+    backgroundColor: '#001A72',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowColor: '#001A72',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    marginBottom: 6,
+  },
+  fabText: {
+    color: '#001A72',
+    fontWeight: '800',
+    fontSize: 13,
+    letterSpacing: 0.4,
+    textAlign: 'center',
+  },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",

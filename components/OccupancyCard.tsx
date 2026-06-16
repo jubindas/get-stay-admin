@@ -1,198 +1,686 @@
-import React, { useMemo } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  Dimensions,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
 
-import { Platform, StyleSheet, Text, View } from "react-native";
+const { width } = Dimensions.get("window");
 
-const OccupancyCard = ({
-  title = "Wellness Center",
-  current = 42,
-  max = 60,
-  lastUpdated = "2m ago",
-}) => {
-  const { percentage, status, colors } = useMemo(() => {
+// Adjust paddings to fit inside Dashboard Content Area (which has paddingHorizontal: 20)
+const HORIZONTAL_PADDING = 40;
+const CARD_PADDING = 10;
+const CALENDAR_INTERNAL_WIDTH = width - HORIZONTAL_PADDING - CARD_PADDING * 2;
+const CELL_MARGIN = 2;
+const COLUMN_WIDTH = CALENDAR_INTERNAL_WIDTH / 7 - CELL_MARGIN * 2;
 
-    const ratio = Math.min(current / max, 1);
-    
-    const pct = Math.round(ratio * 100);
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
-    if (ratio > 0.85)
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function firstDayOffset(year: number, month: number): number {
+  const day = new Date(year, month, 1).getDay(); // 0=Sun … 6=Sat
+  return (day + 6) % 7; // shift so Mon=0
+}
+
+function buildMonthList(): { year: number; month: number }[] {
+  const today = new Date();
+  const result = [];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+    result.push({ year: d.getFullYear(), month: d.getMonth() });
+  }
+  return result;
+}
+
+interface RoomData {
+  day: number;
+  month: number;
+  year: number;
+  totalRooms: number;
+  availableRooms: number;
+  bookedRooms: number;
+}
+
+interface StatusColors {
+  bg: string;
+  text: string;
+  border: string;
+}
+
+export default function OccupancyCard() {
+  const [selectedType, setSelectedType] = useState<string>("Single Room");
+  const [selectedDay, setSelectedDay] = useState<RoomData | null>(null);
+  const [selectedMonthIdx, setSelectedMonthIdx] = useState<number>(0);
+  const [refreshSeed, setRefreshSeed] = useState<number>(0);
+
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const monthList = useMemo(() => buildMonthList(), []);
+  const currentMonthMeta = monthList[selectedMonthIdx];
+
+  const getVacancyForDay = (type: string, day: number) => {
+    const seed = type.length + currentMonthMeta.month + currentMonthMeta.year + refreshSeed;
+    const i = day - 1;
+    return Math.max(0, Math.floor(Math.sin(i + seed) * 10) + 10);
+  };
+
+  const generateMonthData = (
+    type: string,
+    year: number,
+    month: number,
+    seedOffset: number
+  ): RoomData[] => {
+    const seed = type.length + month + year + seedOffset;
+    const count = daysInMonth(year, month);
+    return Array.from({ length: count }, (_, i) => {
+      const total = 20;
+      // Synthesize some varied data using a sin wave
+      const available = Math.max(0, Math.floor(Math.sin(i + seed) * 10) + 10);
       return {
-        percentage: pct,
-        status: "Crowded",
-        colors: ["#FF5F6D", "#FFC371"],
+        day: i + 1,
+        month,
+        year,
+        totalRooms: total,
+        availableRooms: available,
+        bookedRooms: total - available,
       };
-    if (ratio > 0.6)
-      return {
-        percentage: pct,
-        status: "Balanced",
-        colors: ["#FFB75E", "#ED8F03"],
-      };
-    return {
-      percentage: pct,
-      status: "Plentiful Space",
-      colors: ["#00b09b", "#96c93d"],
-    };
-  }, [current, max]);
+    });
+  };
+
+  const days = useMemo(
+    () =>
+      generateMonthData(
+        selectedType,
+        currentMonthMeta.year,
+        currentMonthMeta.month,
+        refreshSeed
+      ),
+    [selectedType, selectedMonthIdx, refreshSeed]
+  );
+
+  const blankCount = firstDayOffset(
+    currentMonthMeta.year,
+    currentMonthMeta.month
+  );
+
+  const blankDays = Array.from({ length: blankCount }, (_, i) => i);
+
+  const handleTypeChange = (type: string) => {
+    animateFade();
+    setSelectedType(type);
+  };
+
+  const handleMonthChange = (idx: number) => {
+    if (idx === selectedMonthIdx) return;
+    animateFade();
+    setSelectedMonthIdx(idx);
+  };
+
+  const handleRefresh = () => {
+    animateFade();
+    // Change seed to show new/refreshed values
+    setRefreshSeed((prev) => prev + 1);
+  };
+
+  const animateFade = () => {
+    Animated.sequence([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const getStatusColor = (avail: number, total: number): StatusColors => {
+    if (avail === 0)
+      return { bg: "#FEE2E2", text: "#991B1B", border: "#FECACA" };
+    if (avail < total * 0.4)
+      return { bg: "#FFEDD5", text: "#9A3412", border: "#FED7AA" };
+    return { bg: "#F0FDF4", text: "#166534", border: "#BBF7D0" };
+  };
+
+  const modalMonthName = selectedDay ? MONTH_NAMES[selectedDay.month] : "";
 
   return (
-    <View style={styles.card}>
-      {/* Background Accent Blur (Optional visual fluff) */}
-      <View
-        style={[
-          styles.accentCircle,
-          { backgroundColor: colors[0], opacity: 0.05 },
-        ]}
-      />
+    <View style={styles.mainWrapper}>
+      {/* Horizontally scrollable room category types */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.roomTypeScroll}
+        contentContainerStyle={styles.roomTypeContent}
+      >
+        {["Single Room", "Double Bed", "King Suite"].map((type) => (
+          <TouchableOpacity
+            key={type}
+            onPress={() => handleTypeChange(type)}
+            style={[
+              styles.segmentTab,
+              selectedType === type && styles.activeSegment,
+            ]}
+          >
+            <Text
+              style={[
+                styles.segmentText,
+                selectedType === type && styles.activeSegmentText,
+              ]}
+            >
+              {type}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
-      <View style={styles.topRow}>
-        <View>
-          <Text style={styles.titleText}>{title}</Text>
-          <Text style={styles.statusLabel}>{status}</Text>
-        </View>
-        <View style={styles.timeContainer}>
-          <Text style={styles.timeText}>{lastUpdated}</Text>
-        </View>
-      </View>
+      {/* Horizontally scrollable month picker */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.monthPickerScroll}
+        contentContainerStyle={styles.monthPickerContent}
+      >
+        {monthList.map((m, idx) => {
+          const isActive = idx === selectedMonthIdx;
+          const shortName = MONTH_NAMES[m.month].slice(0, 3).toUpperCase();
+          const isFirst = idx === 0;
+          return (
+            <TouchableOpacity
+              key={`${m.year}-${m.month}`}
+              onPress={() => handleMonthChange(idx)}
+              style={[styles.monthChip, isActive && styles.monthChipActive]}
+            >
+              <Text
+                style={[
+                  styles.monthChipText,
+                  isActive && styles.monthChipTextActive,
+                ]}
+              >
+                {shortName}
+              </Text>
+              <Text
+                style={[
+                  styles.monthChipYear,
+                  isActive && styles.monthChipYearActive,
+                ]}
+              >
+                {isFirst ? "Now" : `${m.year}`}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
-      <View style={styles.mainInfo}>
-        <View style={styles.counterContainer}>
-          <Text style={styles.currentText}>{current}</Text>
-          <Text style={styles.totalText}>/ {max}</Text>
-        </View>
-        <View style={styles.percentBadge}>
-          <Text style={styles.percentBadgeText}>{percentage}%</Text>
-        </View>
-      </View>
+      {/* Calendar Card */}
+      <Animated.View style={[styles.calendarCard, { opacity: fadeAnim }]}>
+        <View style={styles.calendarHeader}>
+          <TouchableOpacity
+            onPress={() => handleMonthChange(Math.max(0, selectedMonthIdx - 1))}
+            style={[
+              styles.navBtn,
+              selectedMonthIdx === 0 && styles.navBtnDisabled,
+            ]}
+            disabled={selectedMonthIdx === 0}
+          >
+            <Ionicons
+              name="chevron-back"
+              size={18}
+              color={selectedMonthIdx === 0 ? "#CBD5E1" : "#1E293B"}
+            />
+          </TouchableOpacity>
 
-      {/* Modern Progress Bar */}
-      <View style={styles.progressTrack}>
-        <View
-          style={[
-            styles.progressFill,
-            { width: `${percentage}%`, backgroundColor: colors[0] },
-          ]}
-        />
-      </View>
+          <View style={styles.calendarTitleBlock}>
+            <Text style={styles.monthTitle}>
+              {MONTH_NAMES[currentMonthMeta.month]}
+            </Text>
+            <Text style={styles.yearLabel}>{currentMonthMeta.year}</Text>
+          </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.capacityMessage}>
-          {percentage > 90 ? "Expect a wait time" : "Ready for your workout"}
-        </Text>
-      </View>
+          {/* Refresh Button next to the month name */}
+          <TouchableOpacity onPress={handleRefresh} style={styles.refreshBtn}>
+            <Text style={styles.refreshText}>Refresh</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() =>
+              handleMonthChange(
+                Math.min(monthList.length - 1, selectedMonthIdx + 1)
+              )
+            }
+            style={[
+              styles.navBtn,
+              selectedMonthIdx === monthList.length - 1 &&
+              styles.navBtnDisabled,
+            ]}
+            disabled={selectedMonthIdx === monthList.length - 1}
+          >
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={
+                selectedMonthIdx === monthList.length - 1
+                  ? "#CBD5E1"
+                  : "#1E293B"
+              }
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Week Header */}
+        <View style={styles.weekHeader}>
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+            <View
+              key={d}
+              style={{
+                width: COLUMN_WIDTH + CELL_MARGIN * 2,
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={[styles.weekText, d === "Sun" && { color: "#EF4444" }]}
+              >
+                {d}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Grid */}
+        <View style={styles.grid}>
+          {blankDays.map((b) => (
+            <View key={`blank-${b}`} style={styles.blankCell} />
+          ))}
+          {days.map((item) => {
+            const colors = getStatusColor(
+              item.availableRooms,
+              item.totalRooms
+            );
+            return (
+              <Pressable
+                key={item.day}
+                onPress={() => setSelectedDay(item)}
+                style={({ pressed }) => [
+                  styles.dayCell,
+                  {
+                    backgroundColor: colors.bg,
+                    borderColor: colors.border,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                {/* Dates should be small and availability should be bigger */}
+                <Text style={[styles.dayNumber, { color: colors.text }]}>
+                  {item.day}
+                </Text>
+                <Text style={[styles.availText, { color: colors.text }]}>
+                  {item.availableRooms}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* Legend */}
+        <View style={styles.legend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: "#BBF7D0" }]} />
+            <Text style={styles.legendText}>Available</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: "#FED7AA" }]} />
+            <Text style={styles.legendText}>Low (&lt;40%)</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: "#FECACA" }]} />
+            <Text style={styles.legendText}>Full</Text>
+          </View>
+        </View>
+      </Animated.View>
+
+      {/* Detail Modal */}
+      <Modal
+        visible={!!selectedDay}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedDay(null)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setSelectedDay(null)}
+        >
+          <Pressable style={styles.modalCard} onPress={() => { }}>
+            {selectedDay && (
+              <>
+                <Text style={styles.modalTitle}>
+                  {modalMonthName} {selectedDay.day}, {selectedDay.year}
+                </Text>
+                <Text style={styles.modalSubtitle}>Vacany</Text>
+
+                <View style={styles.modalContentContainer}>
+                  <View style={styles.vacancyRow}>
+                    <Text style={styles.vacancyLabel}>1.Single Room</Text>
+                    <Text style={styles.vacancySeparator}>:</Text>
+                    <Text style={styles.vacancyValue}>{getVacancyForDay("Single Room", selectedDay.day)}</Text>
+                  </View>
+                  <View style={styles.vacancyRow}>
+                    <Text style={styles.vacancyLabel}>2.Double Room</Text>
+                    <Text style={styles.vacancySeparator}>:</Text>
+                    <Text style={styles.vacancyValue}>{getVacancyForDay("Double Bed", selectedDay.day)}</Text>
+                  </View>
+                  <View style={styles.vacancyRow}>
+                    <Text style={styles.vacancyLabel}>3.King Suite</Text>
+                    <Text style={styles.vacancySeparator}>:</Text>
+                    <Text style={styles.vacancyValue}>{getVacancyForDay("King Suite", selectedDay.day)}</Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.modalClose}
+                  onPress={() => setSelectedDay(null)}
+                >
+                  <Text style={styles.modalCloseText}>Close</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 24,
-    marginHorizontal: 20,
-    marginVertical: 10,
-    overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.08,
-        shadowRadius: 20,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
+  mainWrapper: {
+    flex: 1,
+    backgroundColor: "transparent",
   },
-  accentCircle: {
-    position: "absolute",
-    top: -50,
-    right: -50,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-  },
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 20,
-  },
-  titleText: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#1A1C1E",
-    letterSpacing: -0.5,
-  },
-  statusLabel: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#6C727A",
-    marginTop: 2,
-  },
-  timeContainer: {
-    backgroundColor: "#F3F5F7",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-  },
-  timeText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#9CA3AF",
-  },
-  mainInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  roomTypeScroll: {
     marginBottom: 12,
   },
-  counterContainer: {
+  roomTypeContent: {
+    gap: 8,
     flexDirection: "row",
-    alignItems: "baseline",
+    paddingRight: 4,
   },
-  currentText: {
-    fontSize: 42,
-    fontWeight: "900",
-    color: "#1A1C1E",
-    letterSpacing: -1,
-  },
-  totalText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#ADB5BD",
-    marginLeft: 4,
-  },
-  percentBadge: {
-    backgroundColor: "#1A1C1E",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  segmentTab: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: "#E2E8F0",
     borderRadius: 12,
-  },
-  percentBadgeText: {
-    color: "#FFF",
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  progressTrack: {
-    height: 12,
-    backgroundColor: "#F1F3F5",
-    borderRadius: 10,
-    width: "100%",
-    marginBottom: 16,
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: 10,
-    // Note: Use LinearGradient here for even more "beauty"
-  },
-  footer: {
-    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
   },
-  capacityMessage: {
+  activeSegment: {
+    backgroundColor: "#FFFFFF",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+  },
+  segmentText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#6C727A",
+    color: "#64748B",
+  },
+  activeSegmentText: {
+    color: "#0F172A",
+    fontWeight: "700",
+  },
+  monthPickerScroll: {
+    marginBottom: 16,
+  },
+  monthPickerContent: {
+    paddingRight: 4,
+    gap: 8,
+    flexDirection: "row",
+  },
+  monthChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    minWidth: 56,
+  },
+  monthChipActive: {
+    backgroundColor: "#1E293B",
+    borderColor: "#1E293B",
+  },
+  monthChipText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#475569",
+    letterSpacing: 0.5,
+  },
+  monthChipTextActive: {
+    color: "#FFF",
+  },
+  monthChipYear: {
+    fontSize: 10,
+    color: "#94A3B8",
+    marginTop: 1,
+    fontWeight: "500",
+  },
+  monthChipYearActive: {
+    color: "#94A3B8",
+  },
+  calendarCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 24,
+    padding: CARD_PADDING,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  calendarHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  calendarTitleBlock: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 6,
+  },
+  monthTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1E293B",
+  },
+  yearLabel: {
+    fontSize: 12,
+    color: "#94A3B8",
+    fontWeight: "600",
+  },
+  refreshBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: "transparent",
+  },
+  refreshText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#000",
+  },
+  navBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  navBtnDisabled: {
+    backgroundColor: "#F8FAFC",
+  },
+  weekHeader: {
+    flexDirection: "row",
+    marginBottom: 8,
+  },
+  weekText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#94A3B8",
+    letterSpacing: 0.5,
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-start",
+  },
+  dayCell: {
+    width: COLUMN_WIDTH,
+    height: COLUMN_WIDTH + 10,
+    margin: CELL_MARGIN,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  blankCell: {
+    width: COLUMN_WIDTH,
+    height: COLUMN_WIDTH + 10,
+    margin: CELL_MARGIN,
+  },
+  dayNumber: {
+    fontSize: 9,
+    fontWeight: "600",
+    position: "absolute",
+    top: 4,
+    left: 5,
+  },
+  availText: {
+    fontSize: 17,
+    fontWeight: "800",
+  },
+  legend: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 16,
+    marginTop: 14,
+    paddingBottom: 4,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendText: {
+    fontSize: 11,
+    color: "#64748B",
+    fontWeight: "500",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 24,
+    padding: 28,
+    width: "100%",
+    elevation: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#1E293B",
+    textAlign: "center",
+  },
+  modalSubtitle: {
+    fontSize: 18,
+    color: "#94A3B8",
+    textAlign: "center",
+    marginTop: 2,
+    fontWeight: "600",
+    marginBottom: 15,
+  },
+  modalContentContainer: {
+    paddingHorizontal: 20,
+    marginVertical: 15,
+    alignSelf: 'center',
+    width: '90%',
+  },
+  vacancyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 6,
+  },
+  vacancyLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#64748B',
+    width: '60%',
+  },
+  vacancySeparator: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#64748B',
+    width: '10%',
+    textAlign: 'center',
+  },
+  vacancyValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#64748B',
+    width: '30%',
+    textAlign: 'right',
+  },
+  modalClose: {
+    marginTop: 24,
+    backgroundColor: "#1E2433",
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  modalCloseText: {
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: 15,
   },
 });
-
-export default OccupancyCard;

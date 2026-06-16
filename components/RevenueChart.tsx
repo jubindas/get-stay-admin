@@ -1,249 +1,242 @@
-import React, { useEffect, useRef, useState } from "react";
-
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
-  LayoutAnimation,
-  Platform,
+  Dimensions,
   StyleSheet,
   Text,
   TouchableOpacity,
-  UIManager,
   View,
 } from "react-native";
 
-import { Circle, Defs, LinearGradient, Stop, Svg } from "react-native-svg";
-
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const { width } = Dimensions.get("window");
 
 const COLORS = {
   white: "#FFFFFF",
   primary: "#F97316",
-  primaryLight: "#FFEDD5",
-  secondary: "#4D90E7", // Soft blue for contrast
-  textDark: "#111827",
-  textMuted: "#9CA3AF",
+  textDark: "#1E293B",
+  textMuted: "#94A3B8",
   surface: "#F8FAFC",
   border: "#E2E8F0",
+  blueOnline: "#3B82F6",
+  greenOffline: "#10B981",
 };
 
-const REVENUE_DATA = [4500, 7200, 3800, 9100, 5600, 8400, 10500];
-
-const LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const maxBarHeight = 130;
 
 export default function RevenueChart() {
+  const [activeTab, setActiveTab] = useState<string>("Day");
+  const animValue = useRef(new Animated.Value(0)).current;
 
-  const [focusIndex, setFocusIndex] = useState(REVENUE_DATA.length - 1);
+  // Animate heights when tab changes
+  useEffect(() => {
+    animValue.setValue(0);
+    Animated.timing(animValue, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: false,
+    }).start();
+  }, [activeTab]);
 
-  const totalRevenue = REVENUE_DATA.reduce((a, b) => a + b, 0);
+  const activeData = useMemo(() => {
+    if (activeTab === "Month") {
+      return [
+        { day: "Jan", online: 60000, offline: 20000 },
+        { day: "Feb", online: 75000, offline: 25000 },
+        { day: "Mar", online: 90000, offline: 30000 },
+        { day: "Apr", online: 80000, offline: 25000 },
+        { day: "May", online: 95000, offline: 35000 },
+        { day: "Jun", online: 110000, offline: 40000 },
+      ];
+    }
+    if (activeTab === "Year") {
+      return [
+        { day: "2023", online: 600000, offline: 200000 },
+        { day: "2024", online: 800000, offline: 250000 },
+        { day: "2025", online: 950000, offline: 300000 },
+        { day: "2026", online: 1100000, offline: 350000 },
+      ];
+    }
+    // Default to Day
+    return [
+      { day: "Mon", online: 9000, offline: 3000 },
+      { day: "Tue", online: 12000, offline: 4000 },
+      { day: "Wed", online: 6000, offline: 2000 },
+      { day: "Thu", online: 15000, offline: 5000 },
+      { day: "Fri", online: 9000, offline: 3000 },
+      { day: "Sat", online: 12000, offline: 4000 },
+      { day: "Sun", online: 12000, offline: 4000 },
+    ];
+  }, [activeTab]);
 
-  const maxVal = Math.max(...REVENUE_DATA);
+  const maxVal = useMemo(() => {
+    const vals = activeData.flatMap((d) => [d.online, d.offline]);
+    return Math.max(...vals, 1);
+  }, [activeData]);
 
-  const handleDayPress = (index: number) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setFocusIndex(index);
+  const formatVal = (val: number) => {
+    if (activeTab === "Year") {
+      return val >= 1000000 ? `${(val / 1000000).toFixed(1)}M` : `${(val / 1000).toFixed(0)}k`;
+    }
+    return val >= 1000 ? `${(val / 1000).toFixed(0)}k` : `${val}`;
   };
 
   return (
     <View style={styles.container}>
-      {/* Premium Header with Segmented Control */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Revenue Insight</Text>
-          <Text style={styles.subtitle}>Real-time earnings flow</Text>
-        </View>
-      </View>
-
-      <View style={styles.mainVisual}>
-        {/* Layered Hub */}
-        <View style={styles.hubWrapper}>
-          <Svg height="200" width="200" viewBox="0 0 100 100">
-            <Defs>
-              <LinearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0" stopColor={COLORS.primary} stopOpacity="1" />
-                <Stop offset="1" stopColor="#FB923C" stopOpacity="1" />
-              </LinearGradient>
-            </Defs>
-            {REVENUE_DATA.map((val, i) => (
-              <DepthRing
-                key={i}
-                index={i}
-                val={val}
-                maxVal={maxVal}
-                isFocused={focusIndex === i}
-              />
-            ))}
-          </Svg>
-
-          <View style={styles.centerDisplay}>
-            <Text style={styles.centerDay}>
-              {LABELS[focusIndex].toUpperCase()}
-            </Text>
-            <Text style={styles.centerValue}>
-              ₹{REVENUE_DATA[focusIndex].toLocaleString()}
-            </Text>
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>Live</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Vertical Metric List */}
-        <View style={styles.metricList}>
-          <View style={styles.metricItem}>
-            <Text style={styles.metricLabel}>Gross</Text>
-            <Text style={styles.metricValue}>
-              ₹{(totalRevenue / 1000).toFixed(1)}k
-            </Text>
-          </View>
-          <View
-            style={[
-              styles.metricItem,
-              { borderLeftWidth: 1, borderLeftColor: COLORS.border },
-            ]}
-          >
-            <Text style={styles.metricLabel}>Avg/Day</Text>
-            <Text style={styles.metricValue}>
-              ₹{(totalRevenue / 7 / 1000).toFixed(1)}k
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Interactive Timeline Legend */}
-      <View style={styles.timeline}>
-        {LABELS.map((label, i) => (
-          <TouchableOpacity
-            key={i}
-            onPress={() => handleDayPress(i)}
-            style={styles.timeStep}
-          >
-            <View
-              style={[
-                styles.stepIndicator,
-                focusIndex === i
-                  ? styles.stepActive
-                  : { height: (REVENUE_DATA[i] / maxVal) * 15 + 4 },
-              ]}
-            />
-            <Text
-              style={[
-                styles.stepText,
-                focusIndex === i && styles.stepTextActive,
-              ]}
+      {/* Header with Title and Segmented Switcher */}
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>Revenue Overview</Text>
+        <View style={styles.tabContainer}>
+          {["Day", "Month", "Year"].map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={[styles.tab, activeTab === tab && styles.activeTab]}
+              activeOpacity={0.7}
             >
-              {label[0]}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[styles.tabText, activeTab === tab && styles.activeTabText]}
+              >
+                {tab}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Chart Section */}
+      <View style={styles.chartWrapper}>
+        {/* Subtle Horizontal Grid Lines */}
+        <View style={styles.gridLinesContainer}>
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={styles.gridLine} />
+          ))}
+        </View>
+
+        {/* Grouped Vertical Bar Chart */}
+        <View style={styles.barsArea}>
+          {activeData.map((item) => (
+            <View key={item.day} style={styles.barGroupContainer}>
+              <View style={styles.barsContainer}>
+                {/* Online Bar */}
+                <View style={styles.barWrapper}>
+                  <Text style={styles.barValText}>{formatVal(item.online)}</Text>
+                  <Animated.View
+                    style={[
+                      styles.bar,
+                      {
+                        backgroundColor: COLORS.blueOnline,
+                        height: animValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, (item.online / maxVal) * maxBarHeight],
+                        }),
+                      },
+                    ]}
+                  />
+                </View>
+
+                {/* Offline Bar */}
+                <View style={styles.barWrapper}>
+                  <Text style={styles.barValText}>{formatVal(item.offline)}</Text>
+                  <Animated.View
+                    style={[
+                      styles.bar,
+                      {
+                        backgroundColor: COLORS.greenOffline,
+                        height: animValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, (item.offline / maxVal) * maxBarHeight],
+                        }),
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+              <Text style={styles.xAxisLabel}>{item.day}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Summary Section below Chart */}
+      <View style={styles.summaryContainer}>
+        {/* Left Card */}
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryBadgeBlue}>
+            <View style={styles.dotBlue} />
+            <Text style={styles.summaryBadgeTextBlue}>Online</Text>
+          </View>
+          <Text style={styles.summaryValueText}>
+            {activeTab === "Day" && "₹75,000 (75%)"}
+            {activeTab === "Month" && "₹510,000 (74%)"}
+            {activeTab === "Year" && "₹3.45M (74%)"}
+          </Text>
+          <Text style={styles.summaryLabelText}>Online Channels</Text>
+        </View>
+
+        {/* Vertical Divider */}
+        <View style={styles.verticalDivider} />
+
+        {/* Right Card */}
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryBadgeGreen}>
+            <View style={styles.dotGreen} />
+            <Text style={styles.summaryBadgeTextGreen}>Offline</Text>
+          </View>
+          <Text style={styles.summaryValueText}>
+            {activeTab === "Day" && "₹25,000 (25%)"}
+            {activeTab === "Month" && "₹175,000 (26%)"}
+            {activeTab === "Year" && "₹1.10M (26%)"}
+          </Text>
+          <Text style={styles.summaryLabelText}>Over the counter</Text>
+        </View>
       </View>
     </View>
-  );
-}
-
-function DepthRing({
-  index,
-  val,
-  maxVal,
-  isFocused,
-}: {
-  index: number;
-  val: number;
-  maxVal: number;
-  isFocused: boolean;
-}) {
-  const animatedValue = useRef(new Animated.Value(0)).current;
-  const radius = 42 - index * 5;
-  const circumference = 2 * Math.PI * radius;
-
-  useEffect(() => {
-    Animated.timing(animatedValue, {
-      toValue: (val / maxVal) * circumference,
-      duration: 1200,
-      delay: index * 80,
-      useNativeDriver: true,
-    }).start();
-  }, [val]);
-
-  return (
-    <>
-      <Circle
-        cx="50"
-        cy="50"
-        r={radius}
-        stroke={COLORS.surface}
-        strokeWidth="3"
-        fill="transparent"
-      />
-      <AnimatedCircle
-        cx="50"
-        cy="50"
-        r={radius}
-        stroke={isFocused ? "url(#grad)" : COLORS.border}
-        strokeWidth={isFocused ? "4.5" : "2"}
-        fill="transparent"
-        strokeDasharray={`${circumference} ${circumference}`}
-        strokeDashoffset={Animated.subtract(circumference, animatedValue)}
-        strokeLinecap="round"
-        opacity={isFocused ? 1 : 0.3}
-        transform={`rotate(-90 50 50)`}
-      />
-    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.white,
-    borderRadius: 32,
-    padding: 24,
-    margin: 16,
+    borderRadius: 24,
+    padding: 20,
+    marginVertical: 10,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.1,
-    shadowRadius: 30,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05,
+    shadowRadius: 15,
+    elevation: 4,
   },
-  header: {
+  headerContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 30,
+    alignItems: "center",
+    marginBottom: 20,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "900",
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: "800",
     color: COLORS.textDark,
-    letterSpacing: -0.5,
   },
-  subtitle: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  segmentedControl: {
+  tabContainer: {
     flexDirection: "row",
-    backgroundColor: COLORS.surface,
-    padding: 4,
-    borderRadius: 12,
+    backgroundColor: "#F1F5F9",
+    padding: 3,
+    borderRadius: 8,
   },
   tab: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
   },
   activeTab: {
     backgroundColor: COLORS.white,
+    elevation: 1,
     shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    shadowRadius: 1,
   },
   tabText: {
     fontSize: 11,
@@ -251,96 +244,140 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
   },
   activeTabText: {
-    color: COLORS.primary,
+    color: "#0F172A",
+    fontWeight: "700",
   },
-  mainVisual: {
-    alignItems: "center",
+  chartWrapper: {
+    height: 185,
+    justifyContent: "flex-end",
+    position: "relative",
   },
-  hubWrapper: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  centerDisplay: {
+  gridLinesContainer: {
     position: "absolute",
-    alignItems: "center",
+    left: 0,
+    right: 0,
+    bottom: 25,
+    height: maxBarHeight,
+    justifyContent: "space-between",
+    zIndex: 1,
   },
-  centerDay: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: COLORS.textMuted,
-    letterSpacing: 2,
-  },
-  centerValue: {
-    fontSize: 22,
-    fontWeight: "900",
-    color: COLORS.textDark,
-    marginVertical: 2,
-  },
-  statusBadge: {
-    backgroundColor: "#DCFCE7",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  statusText: {
-    color: "#166534",
-    fontSize: 9,
-    fontWeight: "800",
-    textTransform: "uppercase",
-  },
-  metricList: {
-    flexDirection: "row",
-    marginTop: 30,
-    backgroundColor: COLORS.surface,
-    borderRadius: 20,
+  gridLine: {
+    height: 1,
+    backgroundColor: "#F1F5F9",
     width: "100%",
   },
-  metricItem: {
-    flex: 1,
-    padding: 15,
-    alignItems: "center",
+  barsArea: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    height: "100%",
+    zIndex: 2,
+    paddingHorizontal: 5,
   },
-  metricLabel: {
+  barGroupContainer: {
+    alignItems: "center",
+    flex: 1,
+  },
+  barsContainer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 4,
+    height: maxBarHeight + 20,
+    justifyContent: "center",
+  },
+  barWrapper: {
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  barValText: {
+    fontSize: 8,
+    fontWeight: "600",
+    color: "#64748B",
+    marginBottom: 4,
+  },
+  bar: {
+    width: 8,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+  },
+  xAxisLabel: {
     fontSize: 11,
     color: COLORS.textMuted,
     fontWeight: "600",
+    marginTop: 6,
   },
-  metricValue: {
+  summaryContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 18,
+    padding: 14,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+  },
+  summaryCard: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  verticalDivider: {
+    width: 1,
+    height: 48,
+    backgroundColor: "#E2E8F0",
+  },
+  summaryBadgeBlue: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  dotBlue: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.blueOnline,
+    marginRight: 4,
+  },
+  summaryBadgeTextBlue: {
+    fontSize: 10,
+    color: "#1E40AF",
+    fontWeight: "700",
+  },
+  summaryBadgeGreen: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  dotGreen: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.greenOffline,
+    marginRight: 4,
+  },
+  summaryBadgeTextGreen: {
+    fontSize: 10,
+    color: "#065F46",
+    fontWeight: "700",
+  },
+  summaryValueText: {
     fontSize: 16,
     fontWeight: "800",
-    color: COLORS.textDark,
-    marginTop: 4,
+    color: "#0F172A",
   },
-  timeline: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 25,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.surface,
-  },
-  timeStep: {
-    alignItems: "center",
-    width: 35,
-  },
-  stepIndicator: {
-    width: 4,
-    backgroundColor: COLORS.border,
-    borderRadius: 2,
-    marginBottom: 8,
-  },
-  stepActive: {
-    backgroundColor: COLORS.primary,
-    width: 6,
-    height: 20,
-  },
-  stepText: {
-    fontSize: 12,
-    fontWeight: "600",
+  summaryLabelText: {
+    fontSize: 11,
     color: COLORS.textMuted,
-  },
-  stepTextActive: {
-    color: COLORS.textDark,
-    fontWeight: "900",
+    fontWeight: "600",
+    marginTop: 2,
   },
 });

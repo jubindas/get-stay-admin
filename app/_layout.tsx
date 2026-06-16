@@ -3,7 +3,9 @@ import { Stack, useRouter } from "expo-router";
 import React, { useEffect } from "react";
 
 function NavigationGuard({ children }: { children: React.ReactNode }) {
+
   const { token } = useAuth();
+
   const router = useRouter();
 
   useEffect(() => {

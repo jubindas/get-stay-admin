@@ -1,293 +1,382 @@
-import React, { useEffect, useRef, useState } from "react";
-
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
+  Dimensions,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 
-
-const BOOKING_DATA: any = {
-  Day: {
-    vals: [4, 7, 3, 8, 5, 9, 6],
-    labels: ["M", "T", "W", "T", "F", "S", "S"],
-    subtitle: "Daily Volume",
-  },
-  Week: {
-    vals: [35, 42, 38, 48],
-    labels: ["W1", "W2", "W3", "W4"],
-    subtitle: "Weekly Volume",
-  },
-  Month: {
-    vals: [80, 95, 70, 110, 130, 120],
-    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-    subtitle: "Monthly Volume",
-  },
-};
+const { width } = Dimensions.get("window");
 
 const COLORS = {
-  primaryBlue: "#003399",
-  accentBlue: "#E0E7FF",
   white: "#FFFFFF",
-  textMain: "#1F2937",
-  textSubtle: "#6B7280",
-  bgSubtle: "#F3F4F6",
-  gridLine: "#F1F5F9",
+  textDark: "#1E293B",
+  textMuted: "#94A3B8",
+  surface: "#F8FAFC",
+  border: "#E2E8F0",
+  blueOnline: "#3B82F6",
+  greenOffline: "#10B981",
 };
 
+const maxBarHeight = 130;
+
 export default function BookingsChart() {
-  const [filter, setFilter] = useState("Day");
-  
-  const current = BOOKING_DATA[filter];
-  
-  const totalBookings = current.vals.reduce((a: number, b: number) => a + b, 0);
+  const [activeTab, setActiveTab] = useState<string>("Day");
+  const animValue = useRef(new Animated.Value(0)).current;
+
+  // Animate heights when tab changes
+  useEffect(() => {
+    animValue.setValue(0);
+    Animated.timing(animValue, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: false,
+    }).start();
+  }, [activeTab]);
+
+  const activeData = useMemo(() => {
+    if (activeTab === "Month") {
+      return [
+        { day: "Jan", online: 120, offline: 40 },
+        { day: "Feb", online: 150, offline: 50 },
+        { day: "Mar", online: 180, offline: 60 },
+        { day: "Apr", online: 160, offline: 50 },
+        { day: "May", online: 190, offline: 60 },
+        { day: "Jun", online: 200, offline: 70 },
+      ];
+    }
+    if (activeTab === "Year") {
+      return [
+        { day: "2023", online: 1200, offline: 400 },
+        { day: "2024", online: 1500, offline: 500 },
+        { day: "2025", online: 1800, offline: 600 },
+        { day: "2026", online: 2100, offline: 700 },
+      ];
+    }
+    // Default to Day
+    return [
+      { day: "Mon", online: 15, offline: 5 },
+      { day: "Tue", online: 22, offline: 8 },
+      { day: "Wed", online: 12, offline: 4 },
+      { day: "Thu", online: 30, offline: 10 },
+      { day: "Fri", online: 18, offline: 6 },
+      { day: "Sat", online: 26, offline: 9 },
+      { day: "Sun", online: 27, offline: 8 },
+    ];
+  }, [activeTab]);
+
+  const maxVal = useMemo(() => {
+    const vals = activeData.flatMap((d) => [d.online, d.offline]);
+    return Math.max(...vals, 1);
+  }, [activeData]);
+
+  const formatVal = (val: number) => {
+    if (activeTab === "Year" && val >= 1000) {
+      return `${(val / 1000).toFixed(1)}k`;
+    }
+    return `${val}`;
+  };
 
   return (
-    <View style={styles.analyticsCard}>
-      <View style={styles.cardHeaderRow}>
-        <View>
-          <Text style={styles.cardTitle}>Bookings Trend</Text>
-          <Text style={styles.cardSubtitle}>{current.subtitle}</Text>
-        </View>
-
-        <View style={styles.miniToggleContainer}>
-          {["Day", "Week", "Month"].map((f) => (
+    <View style={styles.container}>
+      {/* Header with Title and Segmented Switcher */}
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>Bookings Overview</Text>
+        <View style={styles.tabContainer}>
+          {["Day", "Month", "Year"].map((tab) => (
             <TouchableOpacity
-              key={f}
-              onPress={() => setFilter(f)}
-              style={[styles.miniToggle, filter === f && styles.miniToggleActive]}
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={[styles.tab, activeTab === tab && styles.activeTab]}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.miniToggleText, filter === f && styles.miniToggleTextActive]}>
-                {f}
+              <Text
+                style={[styles.tabText, activeTab === tab && styles.activeTabText]}
+              >
+                {tab}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
 
-      <View style={styles.summaryRow}>
-         <View>
-            <Text style={styles.summaryValue}>{totalBookings}</Text>
-            <Text style={styles.summaryLabel}>Total Bookings</Text>
-         </View>
-         <View style={styles.badge}>
-            <Text style={styles.badgeText}>+12.5%</Text>
-         </View>
-      </View>
-
-      <View style={styles.chartContainer}>
+      {/* Chart Section */}
+      <View style={styles.chartWrapper}>
+        {/* Subtle Horizontal Grid Lines */}
         <View style={styles.gridLinesContainer}>
-            <View style={styles.gridLine} />
-            <View style={styles.gridLine} />
-            <View style={styles.gridLine} />
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={styles.gridLine} />
+          ))}
         </View>
 
-        <View style={styles.barChartContainer}>
-          {current.vals.map((val: number, i: number) => (
-            <AnimatedBar
-              key={`${filter}-${i}`}
-              val={val}
-              height={val}
-              maxVal={Math.max(...current.vals)}
-              delay={i * 60}
-              color={COLORS.primaryBlue}
-            />
+        {/* Grouped Vertical Bar Chart */}
+        <View style={styles.barsArea}>
+          {activeData.map((item) => (
+            <View key={item.day} style={styles.barGroupContainer}>
+              <View style={styles.barsContainer}>
+                {/* Online Bar */}
+                <View style={styles.barWrapper}>
+                  <Text style={styles.barValText}>{formatVal(item.online)}</Text>
+                  <Animated.View
+                    style={[
+                      styles.bar,
+                      {
+                        backgroundColor: COLORS.blueOnline,
+                        height: animValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, (item.online / maxVal) * maxBarHeight],
+                        }),
+                      },
+                    ]}
+                  />
+                </View>
+
+                {/* Offline Bar */}
+                <View style={styles.barWrapper}>
+                  <Text style={styles.barValText}>{formatVal(item.offline)}</Text>
+                  <Animated.View
+                    style={[
+                      styles.bar,
+                      {
+                        backgroundColor: COLORS.greenOffline,
+                        height: animValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, (item.offline / maxVal) * maxBarHeight],
+                        }),
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+              <Text style={styles.xAxisLabel}>{item.day}</Text>
+            </View>
           ))}
         </View>
       </View>
 
-      <View style={styles.barLabels}>
-        {current.labels.map((label: string, i: number) => (
-          <Text key={i} style={styles.barLabelText}>{label}</Text>
-        ))}
+      {/* Summary Section below Chart */}
+      <View style={styles.summaryContainer}>
+        {/* Left Card */}
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryBadgeBlue}>
+            <View style={styles.dotBlue} />
+            <Text style={styles.summaryBadgeTextBlue}>Online</Text>
+          </View>
+          <Text style={styles.summaryValueText}>
+            {activeTab === "Day" && "150 (75%)"}
+            {activeTab === "Month" && "1,000 (75%)"}
+            {activeTab === "Year" && "6,600 (75%)"}
+          </Text>
+          <Text style={styles.summaryLabelText}>Online Bookings</Text>
+        </View>
+
+        {/* Vertical Divider */}
+        <View style={styles.verticalDivider} />
+
+        {/* Right Card */}
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryBadgeGreen}>
+            <View style={styles.dotGreen} />
+            <Text style={styles.summaryBadgeTextGreen}>Offline</Text>
+          </View>
+          <Text style={styles.summaryValueText}>
+            {activeTab === "Day" && "50 (25%)"}
+            {activeTab === "Month" && "330 (25%)"}
+            {activeTab === "Year" && "2,200 (25%)"}
+          </Text>
+          <Text style={styles.summaryLabelText}>Offline Bookings</Text>
+        </View>
       </View>
-    </View>
-  );
-}
-
-function AnimatedBar({ height, maxVal, delay, color, val }: any) {
-  const barHeight = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    barHeight.setValue(0);
-    opacity.setValue(0);
-    Animated.parallel([
-        Animated.spring(barHeight, {
-            toValue: height,
-            delay,
-            useNativeDriver: false,
-            tension: 30,
-            friction: 8,
-          }),
-        Animated.timing(opacity, {
-            toValue: 1,
-            duration: 500,
-            delay,
-            useNativeDriver: true
-        })
-    ]).start();
-  }, [height]);
-
-  return (
-    <View style={styles.barWrapper}>
-      <Animated.Text style={[styles.valTooltip, { opacity }]}>{val}</Animated.Text>
-      <Animated.View
-        style={[
-          styles.bar,
-          {
-            backgroundColor: color,
-            height: barHeight.interpolate({
-              inputRange: [0, maxVal],
-              outputRange: [0, 100],
-            }),
-          },
-        ]}
-      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  analyticsCard: {
+  container: {
     backgroundColor: COLORS.white,
     borderRadius: 24,
     padding: 20,
     marginVertical: 10,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    elevation: 4,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowRadius: 15,
+    elevation: 4,
   },
-  cardHeaderRow: {
+  headerContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
   },
-  cardTitle: {
-    fontSize: 18,
+  headerTitle: {
+    fontSize: 16,
     fontWeight: "800",
-    color: COLORS.textMain,
-    letterSpacing: -0.5,
+    color: COLORS.textDark,
   },
-  cardSubtitle: {
-    fontSize: 13,
-    color: COLORS.textSubtle,
-    marginTop: 2,
-  },
-  miniToggleContainer: {
+  tabContainer: {
     flexDirection: "row",
-    backgroundColor: COLORS.bgSubtle,
-    borderRadius: 12,
+    backgroundColor: "#F1F5F9",
     padding: 3,
+    borderRadius: 8,
   },
-  miniToggle: {
-    paddingHorizontal: 12,
+  tab: {
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 10,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  miniToggleActive: {
+  activeTab: {
     backgroundColor: COLORS.white,
+    elevation: 1,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
   },
-  miniToggleText: {
+  tabText: {
     fontSize: 11,
     fontWeight: "700",
-    color: COLORS.textSubtle,
+    color: COLORS.textMuted,
   },
-  miniToggleTextActive: {
-    color: COLORS.primaryBlue,
+  activeTabText: {
+    color: "#0F172A",
+    fontWeight: "700",
   },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 25,
-    backgroundColor: '#F8FAFC',
-    padding: 15,
-    borderRadius: 16,
-  },
-  summaryValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: COLORS.textMain,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: COLORS.textSubtle,
-    fontWeight: '600',
-  },
-  badge: {
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  badgeText: {
-    color: '#166534',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  chartContainer: {
-    height: 130, // Increased to fit tooltips
-    justifyContent: 'flex-end',
+  chartWrapper: {
+    height: 185,
+    justifyContent: "flex-end",
+    position: "relative",
   },
   gridLinesContainer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'space-between',
-    paddingVertical: 5,
-    height: 100,
-    top: 30,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 25,
+    height: maxBarHeight,
+    justifyContent: "space-between",
+    zIndex: 1,
   },
   gridLine: {
     height: 1,
-    backgroundColor: COLORS.gridLine,
-    width: '100%',
+    backgroundColor: "#F1F5F9",
+    width: "100%",
   },
-  barChartContainer: {
-    height: 130,
+  barsArea: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    height: "100%",
+    zIndex: 2,
+    paddingHorizontal: 5,
+  },
+  barGroupContainer: {
+    alignItems: "center",
+    flex: 1,
+  },
+  barsContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
-    justifyContent: "space-between",
-    paddingHorizontal: 5,
-    zIndex: 2,
+    gap: 4,
+    height: maxBarHeight + 20,
+    justifyContent: "center",
   },
   barWrapper: {
-    height: "100%",
-    justifyContent: "flex-end",
-    width: 32,
     alignItems: "center",
+    justifyContent: "flex-end",
   },
-  valTooltip: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: COLORS.primaryBlue,
+  barValText: {
+    fontSize: 8,
+    fontWeight: "600",
+    color: "#64748B",
     marginBottom: 4,
   },
   bar: {
-    width: 16,
-    borderRadius: 6,
-    opacity: 0.85, // Gives it a modern "soft" look
+    width: 8,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
   },
-  barLabels: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 12,
-    paddingHorizontal: 5,
-  },
-  barLabelText: {
+  xAxisLabel: {
     fontSize: 11,
-    color: COLORS.textSubtle,
+    color: COLORS.textMuted,
+    fontWeight: "600",
+    marginTop: 6,
+  },
+  summaryContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 18,
+    padding: 14,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+  },
+  summaryCard: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  verticalDivider: {
+    width: 1,
+    height: 48,
+    backgroundColor: "#E2E8F0",
+  },
+  summaryBadgeBlue: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  dotBlue: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.blueOnline,
+    marginRight: 4,
+  },
+  summaryBadgeTextBlue: {
+    fontSize: 10,
+    color: "#1E40AF",
     fontWeight: "700",
+  },
+  summaryBadgeGreen: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  dotGreen: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.greenOffline,
+    marginRight: 4,
+  },
+  summaryBadgeTextGreen: {
+    fontSize: 10,
+    color: "#065F46",
+    fontWeight: "700",
+  },
+  summaryValueText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+  summaryLabelText: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    fontWeight: "600",
+    marginTop: 2,
   },
 });
