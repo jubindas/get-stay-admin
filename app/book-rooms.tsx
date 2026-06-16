@@ -422,6 +422,22 @@ export default function BookRooms() {
           </TouchableOpacity>
         </LinearGradient>
 
+        {/* Static Total Bookings Section */}
+        {!loadingBookings && bookings.length > 0 && (
+          <View style={styles.totalBookingsSection}>
+            <View style={styles.totalBookingsCard}>
+              <View style={styles.totalBookingsLeft}>
+                <Text style={styles.totalBookingsNum}>{bookings.length}</Text>
+                <Text style={styles.totalBookingsLabel}>Total Bookings</Text>
+              </View>
+              <View style={styles.bookingsStatusBadge}>
+                <View style={styles.statusDotGreen} />
+                <Text style={styles.bookingsStatusText}>Active</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {loadingBookings ? (
           <View style={styles.centerFill}>
             <ActivityIndicator size="large" color={COLORS.primaryMain} />
@@ -895,7 +911,63 @@ const styles = StyleSheet.create({
   },
   flatListContent: {
     padding: 16,
+    paddingTop: 8,
     paddingBottom: 40,
+  },
+  totalBookingsSection: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 4,
+  },
+  totalBookingsCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  totalBookingsLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  totalBookingsNum: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: COLORS.textMain,
+  },
+  totalBookingsLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+  },
+  bookingsStatusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusDotGreen: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#10B981",
+    marginRight: 4,
+  },
+  bookingsStatusText: {
+    fontSize: 11,
+    color: "#065F46",
+    fontWeight: "700",
   },
   centerFill: {
     flex: 1,

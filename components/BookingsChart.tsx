@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+
 import {
   Animated,
   Dimensions,
@@ -23,10 +24,12 @@ const COLORS = {
 const maxBarHeight = 130;
 
 export default function BookingsChart() {
+
   const [activeTab, setActiveTab] = useState<string>("Day");
+
   const animValue = useRef(new Animated.Value(0)).current;
 
-  // Animate heights when tab changes
+
   useEffect(() => {
     animValue.setValue(0);
     Animated.timing(animValue, {
@@ -55,7 +58,7 @@ export default function BookingsChart() {
         { day: "2026", online: 2100, offline: 700 },
       ];
     }
-    // Default to Day
+
     return [
       { day: "Mon", online: 15, offline: 5 },
       { day: "Tue", online: 22, offline: 8 },
@@ -81,7 +84,7 @@ export default function BookingsChart() {
 
   return (
     <View style={styles.container}>
-      {/* Header with Title and Segmented Switcher */}
+
       <View style={styles.headerContainer}>
         <Text style={styles.headerTitle}>Bookings Overview</Text>
         <View style={styles.tabContainer}>
@@ -102,9 +105,9 @@ export default function BookingsChart() {
         </View>
       </View>
 
-      {/* Chart Section */}
+
       <View style={styles.chartWrapper}>
-        {/* Subtle Horizontal Grid Lines */}
+
         <View style={styles.gridLinesContainer}>
           {[0, 1, 2, 3].map((i) => (
             <View key={i} style={styles.gridLine} />
