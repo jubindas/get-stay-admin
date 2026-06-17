@@ -3,7 +3,6 @@ import React, { useMemo, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,12 +10,13 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import CalendarDayModal from "./CalendarDayModal";
 
 const { width } = Dimensions.get("window");
 
 // Adjust paddings to fit inside Dashboard Content Area (which has paddingHorizontal: 20)
 const HORIZONTAL_PADDING = 40;
-const CARD_PADDING = 10;
+const CARD_PADDING = 5;
 const CALENDAR_INTERNAL_WIDTH = width - HORIZONTAL_PADDING - CARD_PADDING * 2;
 const CELL_MARGIN = 2;
 const COLUMN_WIDTH = CALENDAR_INTERNAL_WIDTH / 7 - CELL_MARGIN * 2;
@@ -109,23 +109,7 @@ export default function OccupancyCard() {
     });
   };
 
-  const days = useMemo(
-    () =>
-      generateMonthData(
-        selectedType,
-        currentMonthMeta.year,
-        currentMonthMeta.month,
-        refreshSeed
-      ),
-    [selectedType, selectedMonthIdx, refreshSeed]
-  );
-
-  const blankCount = firstDayOffset(
-    currentMonthMeta.year,
-    currentMonthMeta.month
-  );
-
-  const blankDays = Array.from({ length: blankCount }, (_, i) => i);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const handleTypeChange = (type: string) => {
     animateFade();
@@ -134,8 +118,16 @@ export default function OccupancyCard() {
 
   const handleMonthChange = (idx: number) => {
     if (idx === selectedMonthIdx) return;
-    animateFade();
     setSelectedMonthIdx(idx);
+    scrollViewRef.current?.scrollTo({ x: idx * CALENDAR_INTERNAL_WIDTH, animated: true });
+  };
+
+  const onMomentumScrollEnd = (e: any) => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const idx = Math.round(offsetX / CALENDAR_INTERNAL_WIDTH);
+    if (idx !== selectedMonthIdx && idx >= 0 && idx < monthList.length) {
+      setSelectedMonthIdx(idx);
+    }
   };
 
   const handleRefresh = () => {
@@ -312,39 +304,61 @@ export default function OccupancyCard() {
         </View>
 
         {/* Grid */}
-        <View style={styles.grid}>
-          {blankDays.map((b) => (
-            <View key={`blank-${b}`} style={styles.blankCell} />
-          ))}
-          {days.map((item) => {
-            const colors = getStatusColor(
-              item.availableRooms,
-              item.totalRooms
+        <ScrollView
+          ref={scrollViewRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={onMomentumScrollEnd}
+          style={{ width: CALENDAR_INTERNAL_WIDTH }}
+        >
+          {monthList.map((monthMeta, idx) => {
+            const blankCount = firstDayOffset(monthMeta.year, monthMeta.month);
+            const blankDays = Array.from({ length: blankCount }, (_, i) => i);
+            const monthDays = generateMonthData(
+              selectedType,
+              monthMeta.year,
+              monthMeta.month,
+              refreshSeed
             );
+
             return (
-              <Pressable
-                key={item.day}
-                onPress={() => setSelectedDay(item)}
-                style={({ pressed }) => [
-                  styles.dayCell,
-                  {
-                    backgroundColor: colors.bg,
-                    borderColor: colors.border,
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
-              >
-                {/* Dates should be small and availability should be bigger */}
-                <Text style={[styles.dayNumber, { color: colors.text }]}>
-                  {item.day}
-                </Text>
-                <Text style={[styles.availText, { color: colors.text }]}>
-                  {item.availableRooms}
-                </Text>
-              </Pressable>
+              <View key={idx} style={[styles.grid, { width: CALENDAR_INTERNAL_WIDTH }]}>
+                {blankDays.map((b) => (
+                  <View key={`blank-${b}`} style={styles.blankCell} />
+                ))}
+                {monthDays.map((item) => {
+                  const colors = getStatusColor(
+                    item.availableRooms,
+                    item.totalRooms
+                  );
+                  return (
+                    <Pressable
+                      key={item.day}
+                      onPress={() => setSelectedDay(item)}
+                      style={({ pressed }) => [
+                        styles.dayCell,
+                        {
+                          backgroundColor: colors.bg,
+                          borderColor: colors.border,
+                          opacity: pressed ? 0.7 : 1,
+                        },
+                      ]}
+                    >
+                      {/* Dates should be small and availability should be bigger */}
+                      <Text style={[styles.dayNumber, { color: colors.text }]}>
+                        {item.day}
+                      </Text>
+                      <Text style={[styles.availText, { color: colors.text }]}>
+                        {item.availableRooms}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             );
           })}
-        </View>
+        </ScrollView>
 
         {/* Legend */}
         <View style={styles.legend}>
@@ -363,54 +377,12 @@ export default function OccupancyCard() {
         </View>
       </Animated.View>
 
-      {/* Detail Modal */}
-      <Modal
+      <CalendarDayModal
         visible={!!selectedDay}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedDay(null)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setSelectedDay(null)}
-        >
-          <Pressable style={styles.modalCard} onPress={() => { }}>
-            {selectedDay && (
-              <>
-                <Text style={styles.modalTitle}>
-                  {modalMonthName} {selectedDay.day}, {selectedDay.year}
-                </Text>
-                <Text style={styles.modalSubtitle}>Vacany</Text>
-
-                <View style={styles.modalContentContainer}>
-                  <View style={styles.vacancyRow}>
-                    <Text style={styles.vacancyLabel}>1.Single Room</Text>
-                    <Text style={styles.vacancySeparator}>:</Text>
-                    <Text style={styles.vacancyValue}>{getVacancyForDay("Single Room", selectedDay.day)}</Text>
-                  </View>
-                  <View style={styles.vacancyRow}>
-                    <Text style={styles.vacancyLabel}>2.Double Room</Text>
-                    <Text style={styles.vacancySeparator}>:</Text>
-                    <Text style={styles.vacancyValue}>{getVacancyForDay("Double Bed", selectedDay.day)}</Text>
-                  </View>
-                  <View style={styles.vacancyRow}>
-                    <Text style={styles.vacancyLabel}>3.King Suite</Text>
-                    <Text style={styles.vacancySeparator}>:</Text>
-                    <Text style={styles.vacancyValue}>{getVacancyForDay("King Suite", selectedDay.day)}</Text>
-                  </View>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.modalClose}
-                  onPress={() => setSelectedDay(null)}
-                >
-                  <Text style={styles.modalCloseText}>Close</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </Pressable>
-        </Pressable>
-      </Modal>
+        onClose={() => setSelectedDay(null)}
+        dayData={selectedDay}
+        roomType={selectedType}
+      />
     </View>
   );
 }
@@ -421,7 +393,7 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   roomTypeScroll: {
-    marginBottom: 12,
+    marginBottom: 6,
   },
   roomTypeContent: {
     gap: 8,
@@ -429,8 +401,8 @@ const styles = StyleSheet.create({
     paddingRight: 4,
   },
   segmentTab: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 6,
     backgroundColor: "#E2E8F0",
     borderRadius: 12,
     alignItems: "center",
@@ -453,7 +425,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   monthPickerScroll: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   monthPickerContent: {
     paddingRight: 4,
@@ -461,8 +433,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   monthChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 12,
     backgroundColor: "#F1F5F9",
     borderWidth: 1.5,
@@ -506,7 +478,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: 8,
     paddingHorizontal: 4,
   },
   calendarTitleBlock: {
@@ -562,7 +534,7 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: COLUMN_WIDTH,
-    height: COLUMN_WIDTH + 10,
+    height: COLUMN_WIDTH,
     margin: CELL_MARGIN,
     borderRadius: 8,
     borderWidth: 1,
@@ -572,25 +544,25 @@ const styles = StyleSheet.create({
   },
   blankCell: {
     width: COLUMN_WIDTH,
-    height: COLUMN_WIDTH + 10,
+    height: COLUMN_WIDTH,
     margin: CELL_MARGIN,
   },
   dayNumber: {
     fontSize: 9,
     fontWeight: "600",
     position: "absolute",
-    top: 4,
-    left: 5,
+    top: 2,
+    left: 3,
   },
   availText: {
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: "800",
   },
   legend: {
     flexDirection: "row",
     justifyContent: "center",
     gap: 16,
-    marginTop: 14,
+    marginTop: 6,
     paddingBottom: 4,
   },
   legendItem: {
@@ -607,80 +579,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#64748B",
     fontWeight: "500",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(15,23,42,0.45)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  modalCard: {
-    backgroundColor: "#FFF",
-    borderRadius: 24,
-    padding: 28,
-    width: "100%",
-    elevation: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#1E293B",
-    textAlign: "center",
-  },
-  modalSubtitle: {
-    fontSize: 18,
-    color: "#94A3B8",
-    textAlign: "center",
-    marginTop: 2,
-    fontWeight: "600",
-    marginBottom: 15,
-  },
-  modalContentContainer: {
-    paddingHorizontal: 20,
-    marginVertical: 15,
-    alignSelf: 'center',
-    width: '90%',
-  },
-  vacancyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginVertical: 6,
-  },
-  vacancyLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#64748B',
-    width: '60%',
-  },
-  vacancySeparator: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#64748B',
-    width: '10%',
-    textAlign: 'center',
-  },
-  vacancyValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#64748B',
-    width: '30%',
-    textAlign: 'right',
-  },
-  modalClose: {
-    marginTop: 24,
-    backgroundColor: "#1E2433",
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  modalCloseText: {
-    color: "#FFF",
-    fontWeight: "700",
-    fontSize: 15,
   },
 });

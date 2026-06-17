@@ -60,13 +60,13 @@ export default function BookingsChart() {
     }
 
     return [
-      { day: "Mon", online: 15, offline: 5 },
-      { day: "Tue", online: 22, offline: 8 },
-      { day: "Wed", online: 12, offline: 4 },
-      { day: "Thu", online: 30, offline: 10 },
-      { day: "Fri", online: 18, offline: 6 },
-      { day: "Sat", online: 26, offline: 9 },
-      { day: "Sun", online: 27, offline: 8 },
+      { day: "1", online: 15, offline: 5 },
+      { day: "2", online: 22, offline: 8 },
+      { day: "3", online: 12, offline: 4 },
+      { day: "4", online: 30, offline: 10 },
+      { day: "5", online: 18, offline: 6 },
+      { day: "6", online: 26, offline: 9 },
+      { day: "7", online: 27, offline: 8 },
     ];
   }, [activeTab]);
 
@@ -86,7 +86,11 @@ export default function BookingsChart() {
     <View style={styles.container}>
 
       <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>Bookings Overview</Text>
+        <Text style={styles.headerTitle}>
+          {activeTab === "Day" && "Bookings (Month-To-date)"}
+          {activeTab === "Month" && "Bookings (Year-to-date)"}
+          {activeTab === "Year" && "Bookings (Yearwise)"}
+        </Text>
         <View style={styles.tabContainer}>
           {["Day", "Month", "Year"].map((tab) => (
             <TouchableOpacity
@@ -215,7 +219,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: "800",
     color: COLORS.textDark,
   },

@@ -23,8 +23,10 @@ import { useAuth } from "@/provider/AuthProvider";
 
 import axios from "axios";
 
-import { router } from "expo-router"; 
+import { router } from "expo-router";
 
+import VacancyModal from "../components/VacancyModal";
+import WalkInBookingModal from "../components/WalkInBookingModal";
 import RevenueChart from "../components/RevenueChart";
 
 const { width } = Dimensions.get("window");
@@ -46,6 +48,10 @@ export default function ZenDashboard() {
   const [activeTab, setActiveTab] = useState("Occupancy");
   const [properties, setProperties] = useState<any[]>([]); // New state to hold properties
   const [loading, setLoading] = useState(true); // Track loading status
+  const [vacancyModalVisible, setVacancyModalVisible] = useState(false);
+  const [showBookingForm, setShowBookingForm] = useState(false);
+
+  const todayDate = new Date();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -138,7 +144,7 @@ export default function ZenDashboard() {
             value="2"
             color={COLORS.tealCheck}
             bgColor="#E6FFFA"
-            onPress={() => router.push("/room-category")}
+            onPress={() => setVacancyModalVisible(true)}
           />
           <StatusCard
             icon="bed-outline"
@@ -146,7 +152,7 @@ export default function ZenDashboard() {
             value="8"
             color={COLORS.orangeChart}
             bgColor="#FFF7ED"
-            onPress={() => router.push("/book-rooms")}
+            onPress={() => setShowBookingForm(true)}
           />
           <StatusCard
             icon="log-out-outline"
@@ -183,7 +189,7 @@ export default function ZenDashboard() {
         ) : (
           <>
             <View style={styles.analyticsHeader}>
-              <Text style={styles.sectionTitle}>Booking Analytics</Text>
+
               <View style={styles.subTabContainer}>
                 {["Occupancy", "Revenue", "Bookings"].map((tab) => (
                   <TouchableOpacity
@@ -215,7 +221,7 @@ export default function ZenDashboard() {
       {/* Floating Action Button */}
       <TouchableOpacity
         style={styles.fabWrapper}
-        onPress={() => router.push('/book-rooms')}
+        onPress={() => setShowBookingForm(true)}
         activeOpacity={0.85}
       >
         <View style={styles.fabCircle}>
@@ -223,13 +229,26 @@ export default function ZenDashboard() {
         </View>
         <Text style={styles.fabText}>Book Room</Text>
       </TouchableOpacity>
+
+      <VacancyModal
+        visible={vacancyModalVisible}
+        onClose={() => setVacancyModalVisible(false)}
+        day={todayDate.getDate()}
+        month={todayDate.getMonth()}
+        year={todayDate.getFullYear()}
+      />
+
+      <WalkInBookingModal 
+        visible={showBookingForm}
+        onClose={() => setShowBookingForm(false)}
+      />
     </View>
   );
 }
 
 function StatusCard({ icon, label, value, color, bgColor, isUrgent, onPress }: any) {
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={[styles.statCard, { borderLeftColor: color }]}
       activeOpacity={0.7}
       onPress={onPress}
@@ -258,23 +277,23 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
   scrollPadding: {
-    paddingTop: 10,
-    paddingBottom: 40,
+    paddingTop: 5,
+    paddingBottom: 10,
     flexGrow: 1,
   },
   todaysHeaderContainer: {
     paddingHorizontal: 20,
-    marginTop: 10,
-    marginBottom: 5,
+    marginTop: 5,
+    marginBottom: 0,
   },
   todaysHeaderText: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '800',
     color: '#000',
   },
   fabWrapper: {
     position: 'absolute',
-    bottom: 25,
+    bottom: 30,
     right: 20,
     alignItems: 'center',
     justifyContent: 'center',
@@ -282,9 +301,9 @@ const styles = StyleSheet.create({
   },
   fabCircle: {
     backgroundColor: '#001A72',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 8,
@@ -292,7 +311,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   fabText: {
     color: '#001A72',
@@ -306,14 +325,14 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    marginTop: 10,
+    marginTop: 5,
   },
   statCard: {
     backgroundColor: COLORS.white,
     width: (width - 50) / 2,
-    padding: 16,
+    padding: 10,
     borderRadius: 18,
-    marginBottom: 15,
+    marginBottom: 8,
     borderLeftWidth: 5,
     flexDirection: "row",
     alignItems: "center",
@@ -324,30 +343,30 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   statIconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 10,
+    marginRight: 8,
   },
   statTextContainer: { flex: 1 },
   statLabel: {
-    fontSize: 10,
+    fontSize: 9,
     color: COLORS.textSubtle,
     textTransform: "uppercase",
     fontWeight: "700",
     letterSpacing: 0.5,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "800",
-    marginTop: 2,
+    marginTop: 1,
   },
   analyticsHeader: {
     paddingHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 15,
+    marginTop: 10,
+    marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 18,
@@ -363,7 +382,7 @@ const styles = StyleSheet.create({
   },
   subTab: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 6,
     alignItems: "center",
     borderRadius: 10,
   },
@@ -385,7 +404,7 @@ const styles = StyleSheet.create({
   },
   contentArea: {
     paddingHorizontal: 20,
-    minHeight: 300,
+    minHeight: 200,
   },
 
   // Premium Empty State Styling

@@ -58,13 +58,13 @@ export default function RevenueChart() {
     }
     // Default to Day
     return [
-      { day: "Mon", online: 9000, offline: 3000 },
-      { day: "Tue", online: 12000, offline: 4000 },
-      { day: "Wed", online: 6000, offline: 2000 },
-      { day: "Thu", online: 15000, offline: 5000 },
-      { day: "Fri", online: 9000, offline: 3000 },
-      { day: "Sat", online: 12000, offline: 4000 },
-      { day: "Sun", online: 12000, offline: 4000 },
+      { day: "1", online: 9000, offline: 3000 },
+      { day: "2", online: 12000, offline: 4000 },
+      { day: "3", online: 6000, offline: 2000 },
+      { day: "4", online: 15000, offline: 5000 },
+      { day: "5", online: 9000, offline: 3000 },
+      { day: "6", online: 12000, offline: 4000 },
+      { day: "7", online: 12000, offline: 4000 },
     ];
   }, [activeTab]);
 
@@ -84,7 +84,11 @@ export default function RevenueChart() {
     <View style={styles.container}>
       {/* Header with Title and Segmented Switcher */}
       <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>Revenue Overview</Text>
+        <Text style={styles.headerTitle}>
+          {activeTab === "Day" && "Revenue (Month-To-date)"}
+          {activeTab === "Month" && "Revenue (Year-to-date)"}
+          {activeTab === "Year" && "Revenue (Yearwise)"}
+        </Text>
         <View style={styles.tabContainer}>
           {["Day", "Month", "Year"].map((tab) => (
             <TouchableOpacity
@@ -213,7 +217,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: "800",
     color: COLORS.textDark,
   },

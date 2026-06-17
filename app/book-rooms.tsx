@@ -1,9 +1,7 @@
 import { useAuth } from "@/provider/AuthProvider";
 
 
-import { Ionicons } from "@expo/vector-icons";
 
-import DateTimePicker from "@react-native-community/datetimepicker";
 
 import axios from "axios";
 
@@ -32,7 +30,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View
 } from "react-native";
@@ -40,6 +37,7 @@ import {
 import AlertPopUp, { AlertType } from "@/components/AlertPopUp";
 
 import Header from "../components/Header";
+import WalkInBookingModal from "../components/WalkInBookingModal";
 
 const { width } = Dimensions.get("window");
 
@@ -178,24 +176,6 @@ export default function BookRooms() {
 
   const [showForm, setShowForm] = useState(false);
 
-  // Walk-in Form State
-  const [properties, setProperties] = useState<any[]>([]);
-  const [loadingForm, setLoadingForm] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [propertyId, setPropertyId] = useState("");
-  const [guestName, setGuestName] = useState("");
-  const [guestEmail, setGuestEmail] = useState("");
-  const [guestPhone, setGuestPhone] = useState("");
-  const [checkInDate, setCheckInDate] = useState("");
-  const [checkOutDate, setCheckOutDate] = useState("");
-  const [showCheckInPicker, setShowCheckInPicker] = useState(false);
-  const [showCheckOutPicker, setShowCheckOutPicker] = useState(false);
-  const [selectedRoomId, setSelectedRoomId] = useState("");
-  const [numberOfRooms, setNumberOfRooms] = useState("1");
-  const [adults, setAdults] = useState("1");
-  const [children, setChildren] = useState("0");
-  const [extraBeds, setExtraBeds] = useState("0");
-
   // Bookings List State
   const [bookings, setBookings] = useState<any[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
@@ -207,23 +187,9 @@ export default function BookRooms() {
 
   useEffect(() => {
     if (token) {
-      fetchProperties();
       fetchBookings();
     }
   }, [token]);
-
-  const fetchProperties = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/host/properties`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setProperties(response.data.properties || []);
-    } catch (error) {
-      console.error("Error fetching properties:", error);
-    } finally {
-      setLoadingForm(false);
-    }
-  };
 
   const fetchBookings = async () => {
     setLoadingBookings(true);
@@ -243,110 +209,6 @@ export default function BookRooms() {
     setRefreshingBookings(true);
     await fetchBookings();
     setRefreshingBookings(false);
-  };
-
-  const getRoomsForSelectedProperty = () => {
-    const prop = properties.find((p) => p.id === propertyId);
-    return prop?.room_details || [];
-  };
-
-  const handleBooking = async () => {
-    const missingFields = [];
-    if (!propertyId) missingFields.push("Property");
-    if (!guestName) missingFields.push("Guest Name");
-    if (!guestPhone) missingFields.push("Guest Phone");
-    if (!checkInDate) missingFields.push("Check-in Date");
-    if (!checkOutDate) missingFields.push("Check-out Date");
-    if (!selectedRoomId) missingFields.push("Room Selection");
-
-    if (missingFields.length) {
-      showAlert({
-        type: "warning",
-        title: "Missing Information",
-        message: `Please provide: ${missingFields.join(", ")}.`,
-        primaryLabel: "Got it",
-        onPrimary: dismissAlert,
-      });
-      return;
-    }
-
-    const checkIn = new Date(checkInDate);
-    const checkOut = new Date(checkOutDate);
-    if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
-      showAlert({
-        type: "warning",
-        title: "Invalid Dates",
-        message: "Please select valid check-in and check-out dates.",
-        primaryLabel: "Got it",
-        onPrimary: dismissAlert,
-      });
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const payload = {
-        property_id: propertyId,
-        guest_name: guestName,
-        guest_email: guestEmail || "walkin@noemail.com",
-        guest_phone: guestPhone,
-        check_in_date: checkIn.toISOString(),
-        check_out_date: checkOut.toISOString(),
-        rooms: [
-          {
-            room_details_id: selectedRoomId,
-            number_of_rooms: parseInt(numberOfRooms) || 1,
-            adults: parseInt(adults) || 1,
-            children: parseInt(children) || 0,
-            extra_beds: parseInt(extraBeds) || 0,
-          },
-        ],
-      };
-
-      await axios.post(
-        `${API_BASE_URL}/api/host/bookings/walk-in`,
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      showAlert({
-        type: "success",
-        title: "Success",
-        message: "Walk-in Booking registered successfully!",
-        primaryLabel: "OK",
-        onPrimary: () => {
-          resetForm();
-          setShowForm(false);
-          dismissAlert();
-          fetchBookings(); // Refresh bookings list
-        },
-      });
-    } catch (error: any) {
-      const errMessage = error?.response?.data?.error || error?.response?.data?.message || "An error occurred.";
-      showAlert({
-        type: "error",
-        title: "Booking Failed",
-        message: errMessage,
-        primaryLabel: "OK",
-        onPrimary: dismissAlert,
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const resetForm = () => {
-    setPropertyId("");
-    setGuestName("");
-    setGuestEmail("");
-    setGuestPhone("");
-    setCheckInDate("");
-    setCheckOutDate("");
-    setSelectedRoomId("");
-    setNumberOfRooms("1");
-    setAdults("1");
-    setChildren("0");
-    setExtraBeds("0");
   };
 
   const handleUpdateStatus = async (status: string) => {
@@ -383,22 +245,7 @@ export default function BookRooms() {
     }
   };
 
-  const availableRooms = getRoomsForSelectedProperty();
 
-  const renderStatusBadge = (status: string) => {
-    let color = COLORS.textMuted;
-    let bg = "#F1F5F9";
-    if (status === "Pending") { color = COLORS.warning; bg = COLORS.warningLight; }
-    else if (status === "Confirmed") { color = COLORS.primaryMain; bg = COLORS.primaryLight; }
-    else if (status === "Cancelled") { color = COLORS.danger; bg = COLORS.dangerLight; }
-    else if (status === "Completed") { color = COLORS.success; bg = COLORS.successLight; }
-
-    return (
-      <View style={[styles.statusBadge, { backgroundColor: bg }]}>
-        <Text style={[styles.statusBadgeText, { color }]}>{status}</Text>
-      </View>
-    );
-  };
 
   return (
     <View style={styles.mainContainer}>
@@ -607,256 +454,11 @@ export default function BookRooms() {
         )}
       </Modal>
 
-      {/* WALK-IN BOOKING FORM MODAL */}
-      <Modal visible={showForm} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setShowForm(false)}>
-        <View style={styles.formHeaderRow}>
-          <Text style={styles.formHeaderText}>New Walk-in Booking</Text>
-          <TouchableOpacity onPress={() => setShowForm(false)} style={styles.closeBtn}>
-            <X size={20} color={COLORS.textMain} />
-          </TouchableOpacity>
-        </View>
-
-        {loadingForm ? (
-          <View style={styles.centerFill}>
-            <ActivityIndicator size="large" color={COLORS.primaryMain} />
-          </View>
-        ) : (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-            {/* 1. Property Selection */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>1. Select Property</Text>
-              {properties.length === 0 ? (
-                <Text style={styles.emptyTextForm}>No properties found.</Text>
-              ) : (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={{ marginHorizontal: -16, paddingHorizontal: 16 }}
-                >
-                  {properties.map((prop) => (
-                    <TouchableOpacity
-                      key={prop.id}
-                      style={[
-                        styles.selectablePill,
-                        propertyId === prop.id && styles.selectablePillActive,
-                      ]}
-                      onPress={() => {
-                        setPropertyId(prop.id);
-                        setSelectedRoomId("");
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.selectablePillText,
-                          propertyId === prop.id && styles.selectablePillTextActive,
-                        ]}
-                      >
-                        {prop.property_name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              )}
-            </View>
-
-            {/* 2. Guest Details */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>2. Guest Details</Text>
-              <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>Full Name *</Text>
-                <TextInput
-                  placeholder="Guest Name"
-                  value={guestName}
-                  onChangeText={setGuestName}
-                  style={styles.input}
-                />
-              </View>
-              <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>Phone Number *</Text>
-                <TextInput
-                  placeholder="Guest Phone"
-                  keyboardType="phone-pad"
-                  value={guestPhone}
-                  onChangeText={setGuestPhone}
-                  style={styles.input}
-                />
-              </View>
-              <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>Email Address</Text>
-                <TextInput
-                  placeholder="Guest Email (Optional)"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={guestEmail}
-                  onChangeText={setGuestEmail}
-                  style={styles.input}
-                />
-              </View>
-            </View>
-
-            {/* 3. Dates */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>3. Booking Dates</Text>
-              <View style={styles.row}>
-                {/* Check-in */}
-                <View style={[styles.inputWrapper, { flex: 1 }]}>
-                  <Text style={styles.inputLabel}>Check-in Date *</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowCheckInPicker(true)}
-                    style={styles.datePickerBtn}
-                  >
-                    <Text style={styles.datePickerText}>
-                      {checkInDate || "Select Date"}
-                    </Text>
-                    <Ionicons name="calendar" size={20} color={COLORS.textSecondary} />
-                  </TouchableOpacity>
-                  {showCheckInPicker && (
-                    <DateTimePicker
-                      value={checkInDate ? new Date(checkInDate) : new Date()}
-                      mode="date"
-                      display="default"
-                      onChange={(event, date) => {
-                        setShowCheckInPicker(false);
-                        if (date) {
-                          const iso = date.toISOString().split("T")[0];
-                          setCheckInDate(iso);
-                        }
-                      }}
-                    />
-                  )}
-                </View>
-
-                <View style={{ width: 12 }} />
-
-                {/* Check-out */}
-                <View style={[styles.inputWrapper, { flex: 1 }]}>
-                  <Text style={styles.inputLabel}>Check-out Date *</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowCheckOutPicker(true)}
-                    style={styles.datePickerBtn}
-                  >
-                    <Text style={styles.datePickerText}>
-                      {checkOutDate || "Select Date"}
-                    </Text>
-                    <Ionicons name="calendar" size={20} color={COLORS.textSecondary} />
-                  </TouchableOpacity>
-                  {showCheckOutPicker && (
-                    <DateTimePicker
-                      value={checkOutDate ? new Date(checkOutDate) : new Date()}
-                      mode="date"
-                      display="default"
-                      onChange={(event, date) => {
-                        setShowCheckOutPicker(false);
-                        if (date) {
-                          const iso = date.toISOString().split("T")[0];
-                          setCheckOutDate(iso);
-                        }
-                      }}
-                    />
-                  )}
-                </View>
-              </View>
-            </View>
-
-            {/* 4. Room Selection */}
-            {propertyId ? (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>4. Select Room</Text>
-                {availableRooms.length === 0 ? (
-                  <Text style={styles.emptyTextForm}>No rooms available in this property.</Text>
-                ) : (
-                  <View>
-                    {availableRooms.map((room: any, index: number) => (
-                      <TouchableOpacity
-                        key={room.id}
-                        style={[
-                          styles.roomSelectCard,
-                          selectedRoomId === room.id && styles.roomSelectCardActive,
-                        ]}
-                        onPress={() => setSelectedRoomId(room.id)}
-                      >
-                        <View>
-                          <Text
-                            style={[
-                              styles.roomName,
-                              selectedRoomId === room.id && styles.roomNameActive,
-                            ]}
-                          >
-                            Room {index + 1}
-                          </Text>
-                          <Text style={styles.roomPrice}>₹{room.base_price} / night</Text>
-                        </View>
-                        {selectedRoomId === room.id && (
-                          <CheckCircle size={24} color={COLORS.primaryMain} />
-                        )}
-                      </TouchableOpacity>
-                    ))}
-
-                    {selectedRoomId ? (
-                      <View style={styles.quantitiesContainer}>
-                        <View style={styles.row}>
-                          <View style={[styles.inputWrapper, { flex: 1 }]}>
-                            <Text style={styles.inputLabel}>No. of Rooms</Text>
-                            <TextInput
-                              keyboardType="numeric"
-                              value={numberOfRooms}
-                              onChangeText={setNumberOfRooms}
-                              style={styles.input}
-                            />
-                          </View>
-                          <View style={{ width: 12 }} />
-                          <View style={[styles.inputWrapper, { flex: 1 }]}>
-                            <Text style={styles.inputLabel}>Adults</Text>
-                            <TextInput
-                              keyboardType="numeric"
-                              value={adults}
-                              onChangeText={setAdults}
-                              style={styles.input}
-                            />
-                          </View>
-                        </View>
-                        <View style={styles.row}>
-                          <View style={[styles.inputWrapper, { flex: 1 }]}>
-                            <Text style={styles.inputLabel}>Children</Text>
-                            <TextInput
-                              keyboardType="numeric"
-                              value={children}
-                              onChangeText={setChildren}
-                              style={styles.input}
-                            />
-                          </View>
-                          <View style={{ width: 12 }} />
-                          <View style={[styles.inputWrapper, { flex: 1 }]}>
-                            <Text style={styles.inputLabel}>Extra Beds</Text>
-                            <TextInput
-                              keyboardType="numeric"
-                              value={extraBeds}
-                              onChangeText={setExtraBeds}
-                              style={styles.input}
-                            />
-                          </View>
-                        </View>
-                      </View>
-                    ) : null}
-                  </View>
-                )}
-              </View>
-            ) : null}
-
-            <TouchableOpacity
-              style={[styles.submitButton, submitting && { opacity: 0.7 }]}
-              onPress={handleBooking}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.submitButtonText}>Confirm Walk-in Booking</Text>
-              )}
-            </TouchableOpacity>
-          </ScrollView>
-        )}
-      </Modal>
+      <WalkInBookingModal
+        visible={showForm}
+        onClose={() => setShowForm(false)}
+        onSuccess={() => fetchBookings()}
+      />
 
       <AlertPopUp
         visible={alert.visible}
