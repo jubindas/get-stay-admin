@@ -10,17 +10,27 @@ import {
   AlignLeft,
   BedDouble,
   Building,
+  CarFront,
   Check,
+  CheckCircle2,
   ChevronDown,
+  Cigarette,
   Clock,
+  Dog,
+  Dumbbell,
+  Flame,
   Image as ImageIcon,
   IndianRupee,
   Percent,
   Plus,
+  Settings,
+  Shirt,
   Trash2,
   Users,
+  Utensils,
   Wifi,
   X,
+  Zap
 } from "lucide-react-native";
 
 import { useLocalSearchParams } from "expo-router";
@@ -398,13 +408,115 @@ function CustomDropdown({ items, value, onChange, loading, label, icon: Icon, pl
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
+
+const PREDEFINED_AMENITIES = [
+  { id: "wifi", label: "Wifi", icon: Wifi },
+  { id: "power_backup", label: "Power Backup", icon: Zap },
+  { id: "dg_set", label: "DG set", icon: Settings },
+  { id: "smoking_allowed", label: "Smoking allowed in room", icon: Cigarette },
+  { id: "jain_food", label: "Jain food", icon: Utensils },
+  { id: "laundry", label: "Laundry", icon: Shirt },
+  { id: "pet_friendly", label: "Pet friendly", icon: Dog },
+  { id: "bonfire", label: "Bonfire", icon: Flame },
+  { id: "parking_free", label: "Parking(Free)", icon: CarFront },
+  { id: "parking_paid", label: "Parking(Paid)", icon: CarFront },
+  { id: "restaurant", label: "Restaurant", icon: Utensils },
+  { id: "barbeque", label: "Barbeque/Roasting", icon: Flame },
+  { id: "mini_gym", label: "Mini gym", icon: Dumbbell },
+];
+
+interface AmenitiesGridProps {
+  selectedAmenities: string;
+  onChange: (amenities: string) => void;
+}
+
+function AmenitiesGrid({ selectedAmenities, onChange }: AmenitiesGridProps) {
+  const selectedList = selectedAmenities
+    ? selectedAmenities.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  const toggleAmenity = (label: string) => {
+    let newList = [...selectedList];
+    if (newList.includes(label)) {
+      newList = newList.filter((item) => item !== label);
+    } else {
+      newList.push(label);
+    }
+    onChange(newList.join(", "));
+  };
+
+  return (
+    <View style={styles.amenitiesGrid}>
+      {PREDEFINED_AMENITIES.map((amenity) => {
+        const isSelected = selectedList.includes(amenity.label);
+        const Icon = amenity.icon;
+        return (
+          <TouchableOpacity
+            key={amenity.id}
+            style={[
+              styles.amenityCard,
+              isSelected && styles.amenityCardSelected,
+            ]}
+            onPress={() => toggleAmenity(amenity.label)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.amenityIconContainer}>
+              <Icon
+                size={24}
+                color={isSelected ? COLORS.primary : COLORS.textMuted}
+              />
+            </View>
+            <Text
+              style={[
+                styles.amenityLabel,
+                isSelected && styles.amenityLabelSelected,
+              ]}
+              numberOfLines={2}
+            >
+              {amenity.label}
+            </Text>
+            {isSelected && (
+              <View style={styles.amenityCheck}>
+                <CheckCircle2 size={16} color={COLORS.primary} />
+              </View>
+            )}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function AddRooms() {
+
   const { token } = useAuth();
   const { propertyId: urlPropertyId } = useLocalSearchParams<{ propertyId: string }>();
 
   const [alert, setAlert] = useState<AlertState>(ALERT_HIDDEN);
   const [createdRooms, setCreatedRooms] = useState<any[]>([]);
+
   const [showUnitsPhase, setShowUnitsPhase] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+
+  const validateStep = (step: number) => {
+    if (step === 1) {
+      if (!propertyId) return "Please select a property first.";
+      if (roomImages.length === 0) return "Please provide at least one room image.";
+    }
+    if (step === 2) {
+      for (const r of rooms) {
+        if (!r.room_category_id) return "Please select a room category for all rooms.";
+        if (!r.room_capacity) return "Please specify capacity for all rooms.";
+      }
+    }
+    if (step === 3) {
+      for (const r of rooms) {
+        if (!r.base_price) return "Please specify a base price for all rooms.";
+      }
+    }
+    return null;
+  };
+
   const dismissAlert = () => setAlert((a) => ({ ...a, visible: false }));
   const showAlert = (config: Omit<AlertState, "visible">) =>
     setAlert({ ...config, visible: true });
@@ -568,6 +680,7 @@ export default function AddRooms() {
     }
   };
 
+
   return (
     <KeyboardAvoidingView
       style={styles.mainContainer}
@@ -583,162 +696,256 @@ export default function AddRooms() {
         <Text style={styles.pageTitle}>Add Rooms</Text>
         <Text style={styles.pageSubtitle}>Expand your property with new room listings.</Text>
 
-        <Section title="Target Property" icon={Building}>
-          {propertiesLoading ? (
-            <Text style={{ color: COLORS.textMuted }}>Loading property info...</Text>
-          ) : (
-            <View style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: '#fff',
-              padding: 16,
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: COLORS.border,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.05,
-              shadowRadius: 10,
-              elevation: 3,
-            }}>
-              {(() => {
-                const p = properties.find(p => p.id === propertyId);
-                if (!p) return <Text style={{ color: COLORS.textMuted }}>Unknown Property</Text>;
-                return (
-                  <>
-                    {p.property_images && p.property_images.length > 0 ? (
-                      <Image
-                        source={{ uri: `${API_BASE_URL}${p.property_images[0]}` }}
-                        style={{ width: 54, height: 54, borderRadius: 12, marginRight: 14, backgroundColor: COLORS.primaryLight }}
-                      />
-                    ) : (
-                      <View style={{ width: 54, height: 54, borderRadius: 12, marginRight: 14, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' }}>
-                        <Building size={24} color={COLORS.primary} />
-                      </View>
-                    )}
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.textActive, marginBottom: 2 }}>
-                        {p.property_name}
-                      </Text>
-                      {p.address_display && (
-                        <Text style={{ fontSize: 13, color: COLORS.textMuted }}>
-                          {p.address_display}
-                        </Text>
-                      )}
-                    </View>
-                    <View style={{ backgroundColor: COLORS.successLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: COLORS.success }}>SELECTED</Text>
-                    </View>
-                  </>
-                );
-              })()}
-            </View>
-          )}
-        </Section>
-
-        <Section title="Global Gallery" icon={ImageIcon}>
-          <ImagePickerField
-            label="Room Images (Applies to all)"
-            images={roomImages}
-            onChange={setRoomImages}
-            onError={(msg: string) => showAlert({
-              type: "warning",
-              title: "Permission required",
-              message: msg,
-              primaryLabel: "OK",
-              onPrimary: dismissAlert,
-            })}
-          />
-        </Section>
-
-        {rooms.map((room, index) => (
-          <View key={room.id} style={styles.roomCard}>
-            <View style={styles.roomCardHeader}>
-              <View style={styles.roomBadge}>
-                <Text style={styles.roomBadgeText}>{index + 1}</Text>
-              </View>
-              <Text style={styles.roomCardTitle}>Room Details</Text>
-              {rooms.length > 1 && (
-                <TouchableOpacity style={styles.roomCardRemoveBtn} onPress={() => removeRoom(room.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Trash2 size={16} color={COLORS.danger} />
-                </TouchableOpacity>
+        {currentStep === 1 && (
+          <View>
+            <Section title="Target Property" icon={Building}>
+              {propertiesLoading ? (
+                <Text style={{ color: COLORS.textMuted }}>Loading property info...</Text>
+              ) : (
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#fff',
+                  padding: 16,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 10,
+                  elevation: 3,
+                }}>
+                  {(() => {
+                    const p = properties.find(p => p.id === propertyId);
+                    if (!p) return <Text style={{ color: COLORS.textMuted }}>Unknown Property</Text>;
+                    return (
+                      <>
+                        {p.property_images && p.property_images.length > 0 ? (
+                          <Image
+                            source={{ uri: `${API_BASE_URL}${p.property_images[0]}` }}
+                            style={{ width: 54, height: 54, borderRadius: 12, marginRight: 14, backgroundColor: COLORS.primaryLight }}
+                          />
+                        ) : (
+                          <View style={{ width: 54, height: 54, borderRadius: 12, marginRight: 14, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' }}>
+                            <Building size={24} color={COLORS.primary} />
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.textActive, marginBottom: 2 }}>
+                            {p.property_name}
+                          </Text>
+                          {p.address_display && (
+                            <Text style={{ fontSize: 13, color: COLORS.textMuted }}>
+                              {p.address_display}
+                            </Text>
+                          )}
+                        </View>
+                        <View style={{ backgroundColor: COLORS.successLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: COLORS.success }}>SELECTED</Text>
+                        </View>
+                      </>
+                    );
+                  })()}
+                </View>
               )}
-            </View>
+            </Section>
 
-            <CustomDropdown
-              items={roomCategories}
-              value={room.room_category_id}
-              onChange={(id: string) => updateRoom(room.id, "room_category_id", id)}
-              loading={roomCategoriesLoading}
-              label="Room Category"
-              icon={AlignLeft}
-              placeholder="Select category"
-            />
-
-            <Field
-              label="Description"
-              value={room.room_description}
-              onChange={(val: string) => updateRoom(room.id, "room_description", val)}
-              optional
-              multiline
-              icon={AlignLeft}
-            />
-
-            <View style={styles.roomRow}>
-              <View style={styles.roomRowField}>
-                <Field label="Capacity" value={room.room_capacity} onChange={(val: string) => updateRoom(room.id, "room_capacity", val)} numeric icon={Users} />
-              </View>
-              <View style={styles.roomRowField}>
-                <Field label="Bed Count" value={room.bed_count} onChange={(val: string) => updateRoom(room.id, "bed_count", val)} numeric optional icon={BedDouble} />
-              </View>
-            </View>
-
-            <View style={styles.roomRow}>
-              <View style={styles.roomRowField}>
-                <Field label="Base Price" value={room.base_price} onChange={(val: string) => updateRoom(room.id, "base_price", val)} numeric icon={IndianRupee} />
-              </View>
-              <View style={styles.roomRowField}>
-                <Field label="Discount %" value={room.discount_percentage} onChange={(val: string) => updateRoom(room.id, "discount_percentage", val)} numeric optional icon={Percent} />
-              </View>
-            </View>
-
-            <View style={styles.roomRow}>
-              <View style={styles.roomRowField}>
-                <Field label="Extra Bed Cap." value={room.extra_bed_capacity} onChange={(val: string) => updateRoom(room.id, "extra_bed_capacity", val)} numeric optional icon={Users} />
-              </View>
-              <View style={styles.roomRowField}>
-                <Field label="Extra Bed Price" value={room.extra_bed_price} onChange={(val: string) => updateRoom(room.id, "extra_bed_price", val)} numeric optional icon={IndianRupee} />
-              </View>
-            </View>
-
-            <Field
-              label="Amenities"
-              placeholder="Wifi, AC, TV (comma separated)"
-              value={room.amenities}
-              onChange={(val: string) => updateRoom(room.id, "amenities", val)}
-              icon={Wifi}
-            />
-
-            <View style={styles.roomRow}>
-              <View style={styles.roomRowField}>
-                <Field label="Check-in Time" placeholder="e.g. 14:00" value={room.check_in_time} onChange={(val: string) => updateRoom(room.id, "check_in_time", val)} icon={Clock} />
-              </View>
-              <View style={styles.roomRowField}>
-                <Field label="Check-out Time" placeholder="e.g. 11:00" value={room.check_out_time} onChange={(val: string) => updateRoom(room.id, "check_out_time", val)} icon={Clock} />
-              </View>
-            </View>
+            <Section title="Global Gallery" icon={ImageIcon}>
+              <ImagePickerField
+                label="Room Images (Applies to all)"
+                images={roomImages}
+                onChange={setRoomImages}
+                onError={(msg: string) => showAlert({
+                  type: "warning",
+                  title: "Permission required",
+                  message: msg,
+                  primaryLabel: "OK",
+                  onPrimary: dismissAlert,
+                })}
+              />
+            </Section>
           </View>
-        ))}
+        )}
 
-        <TouchableOpacity style={styles.addRoomBtn} onPress={addRoom} activeOpacity={0.7}>
-          <Plus size={20} color={COLORS.primary} strokeWidth={2.5} />
-          <Text style={styles.addRoomBtnText}>Add Another Room</Text>
-        </TouchableOpacity>
+        {currentStep === 2 && (
+          <View>
+            {rooms.map((room, index) => (
+              <View key={room.id} style={styles.roomCard}>
+                <View style={styles.roomCardHeader}>
+                  <View style={styles.roomBadge}>
+                    <Text style={styles.roomBadgeText}>{index + 1}</Text>
+                  </View>
+                  <Text style={styles.roomCardTitle}>Room Configuration</Text>
+                  {rooms.length > 1 && (
+                    <TouchableOpacity style={styles.roomCardRemoveBtn} onPress={() => removeRoom(room.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                      <Trash2 size={16} color={COLORS.danger} />
+                    </TouchableOpacity>
+                  )}
+                </View>
 
-        <TouchableOpacity style={[styles.submitButton, loading && styles.submitButtonDisabled]} onPress={handleSubmit} disabled={loading} activeOpacity={0.8}>
-          <Text style={styles.submitText}>{loading ? "Submitting..." : "Save Rooms"}</Text>
-        </TouchableOpacity>
+                <CustomDropdown
+                  items={roomCategories}
+                  value={room.room_category_id}
+                  onChange={(id: string) => updateRoom(room.id, "room_category_id", id)}
+                  loading={roomCategoriesLoading}
+                  label="Room Category"
+                  icon={AlignLeft}
+                  placeholder="Select category"
+                />
+
+                <Field
+                  label="Description"
+                  value={room.room_description}
+                  onChange={(val: string) => updateRoom(room.id, "room_description", val)}
+                  optional
+                  multiline
+                  icon={AlignLeft}
+                />
+
+                <View style={styles.roomRow}>
+                  <View style={styles.roomRowField}>
+                    <Field label="Capacity" value={room.room_capacity} onChange={(val: string) => updateRoom(room.id, "room_capacity", val)} numeric icon={Users} />
+                  </View>
+                  <View style={styles.roomRowField}>
+                    <Field label="Bed Count" value={room.bed_count} onChange={(val: string) => updateRoom(room.id, "bed_count", val)} numeric optional icon={BedDouble} />
+                  </View>
+                </View>
+              </View>
+            ))}
+
+            <TouchableOpacity style={styles.addRoomBtn} onPress={addRoom} activeOpacity={0.7}>
+              <Plus size={20} color={COLORS.primary} strokeWidth={2.5} />
+              <Text style={styles.addRoomBtnText}>Add Another Room</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {currentStep === 3 && (
+          <View>
+            {rooms.map((room, index) => (
+              <View key={room.id} style={styles.roomCard}>
+                <View style={styles.roomCardHeader}>
+                  <View style={styles.roomBadge}>
+                    <Text style={styles.roomBadgeText}>{index + 1}</Text>
+                  </View>
+                  <Text style={styles.roomCardTitle}>Pricing & Rates</Text>
+                </View>
+
+                <View style={styles.roomRow}>
+                  <View style={styles.roomRowField}>
+                    <Field label="Base Price" value={room.base_price} onChange={(val: string) => updateRoom(room.id, "base_price", val)} numeric icon={IndianRupee} />
+                  </View>
+                  <View style={styles.roomRowField}>
+                    <Field label="Discount %" value={room.discount_percentage} onChange={(val: string) => updateRoom(room.id, "discount_percentage", val)} numeric optional icon={Percent} />
+                  </View>
+                </View>
+
+                <View style={styles.roomRow}>
+                  <View style={styles.roomRowField}>
+                    <Field label="Extra Bed Cap." value={room.extra_bed_capacity} onChange={(val: string) => updateRoom(room.id, "extra_bed_capacity", val)} numeric optional icon={Users} />
+                  </View>
+                  <View style={styles.roomRowField}>
+                    <Field label="Extra Bed Price" value={room.extra_bed_price} onChange={(val: string) => updateRoom(room.id, "extra_bed_price", val)} numeric optional icon={IndianRupee} />
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {currentStep === 4 && (
+          <View>
+            {rooms.map((room, index) => (
+              <View key={room.id} style={styles.roomCard}>
+                <View style={styles.roomCardHeader}>
+                  <View style={styles.roomBadge}>
+                    <Text style={styles.roomBadgeText}>{index + 1}</Text>
+                  </View>
+                  <Text style={styles.roomCardTitle}>Amenities & Timings</Text>
+                </View>
+
+                <View style={styles.fieldWrapper}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.label}>Select Amenities</Text>
+                  </View>
+                  <AmenitiesGrid
+                    selectedAmenities={room.amenities}
+                    onChange={(val: string) => updateRoom(room.id, "amenities", val)}
+                  />
+                </View>
+
+                <View style={styles.roomRow}>
+                  <View style={styles.roomRowField}>
+                    <Field label="Check-in Time" placeholder="e.g. 14:00" value={room.check_in_time} onChange={(val: string) => updateRoom(room.id, "check_in_time", val)} icon={Clock} />
+                  </View>
+                  <View style={styles.roomRowField}>
+                    <Field label="Check-out Time" placeholder="e.g. 11:00" value={room.check_out_time} onChange={(val: string) => updateRoom(room.id, "check_out_time", val)} icon={Clock} />
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
       </ScrollView>
+
+      {/* Pinned Footer */}
+      <View style={styles.pinnedFooter}>
+        <View style={{ flexDirection: "row", justifyContent: "center", marginBottom: 16, gap: 6 }}>
+          {[1, 2, 3, 4].map((step) => (
+            <View
+              key={step}
+              style={{
+                height: 4,
+                width: currentStep === step ? 24 : 12,
+                backgroundColor: currentStep >= step ? COLORS.primary : COLORS.border,
+                borderRadius: 2,
+              }}
+            />
+          ))}
+        </View>
+
+        <View style={styles.footerRow}>
+          {currentStep > 1 && (
+            <TouchableOpacity
+              style={[styles.footerBtn, styles.prevBtn]}
+              onPress={() => setCurrentStep(s => s - 1)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.prevBtnText}>Back</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[styles.footerBtn, styles.nextBtn, loading && styles.submitButtonDisabled]}
+            onPress={() => {
+              const error = validateStep(currentStep);
+              if (error) {
+                showAlert({
+                  type: "warning",
+                  title: "Validation Error",
+                  message: error,
+                  primaryLabel: "Got it",
+                  onPrimary: dismissAlert,
+                });
+                return;
+              }
+              if (currentStep < 4) {
+                setCurrentStep(s => s + 1);
+              } else {
+                handleSubmit();
+              }
+            }}
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.nextBtnText}>
+              {loading ? "Submitting..." : currentStep < 4 ? "Next Step" : "Save Rooms"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <AlertPopUp
         visible={alert.visible}
@@ -771,6 +978,7 @@ export default function AddRooms() {
                 setRooms([{ ...INITIAL_ROOM }]);
                 setRoomImages([]);
                 setPropertyId("");
+                setCurrentStep(1);
                 showAlert({
                   type: "success",
                   title: "Setup Complete",
@@ -995,4 +1203,93 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   addRoomBtnText: { fontSize: 15, color: COLORS.primary, fontWeight: "700" },
+
+  // ── Amenities ──
+  amenitiesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "space-between",
+  },
+  amenityCard: {
+    width: "48%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  amenityCardSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
+  },
+  amenityIconContainer: { marginBottom: 2 },
+  amenityLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.textMuted,
+    textAlign: "center",
+    lineHeight: 17,
+  },
+  amenityLabelSelected: {
+    color: COLORS.primary,
+    fontWeight: "700",
+  },
+  amenityCheck: { position: "absolute", top: 8, right: 8 },
+
+  // ── Pinned Footer ──
+  pinnedFooter: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === "ios" ? 34 : 20,
+    borderTopWidth: 0.5,
+    borderTopColor: COLORS.border,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  footerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  footerBtn: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  prevBtn: {
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  prevBtnText: {
+    color: COLORS.textMuted,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  nextBtn: {
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.32,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  nextBtnText: { color: "#FFF", fontSize: 15, fontWeight: "700" },
+
 });

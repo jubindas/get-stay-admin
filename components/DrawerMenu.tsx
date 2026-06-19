@@ -6,6 +6,7 @@ import { AccountSwitcher } from "./AccountSwitcher";
 import { router, usePathname } from "expo-router";
 
 import React, { useEffect, useRef, useState } from "react";
+import { useAuth } from "../provider/AuthProvider";
 
 import {
   Animated,
@@ -44,6 +45,7 @@ const COLORS = {
 
 const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, setVisible }) => {
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   const animValue = useRef(new Animated.Value(0)).current;
 
@@ -184,7 +186,10 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, setVisible }) => {
               label="Logout"
               path="/login"
               pathname={pathname}
-              onPress={() => navigate("/")}
+              onPress={async () => {
+                await logout();
+                navigate("/");
+              }}
               isLogout
             />
           </View>

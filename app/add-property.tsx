@@ -14,7 +14,25 @@ import { useAuth } from "@/provider/AuthProvider";
 
 import { useRouter } from "expo-router";
 
-import { Bed, Building, MapPin, Pencil, Plus, X } from "lucide-react-native";
+import {
+  Bed,
+  Building,
+  CarFront,
+  CheckCircle2,
+  Cigarette,
+  Dog,
+  Dumbbell,
+  Flame,
+  MapPin,
+  Pencil,
+  Plus,
+  Settings,
+  Shirt,
+  Utensils,
+  Wifi,
+  X,
+  Zap
+} from "lucide-react-native";
 
 import {
   Animated,
@@ -34,6 +52,22 @@ import {
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
+const PREDEFINED_AMENITIES = [
+  { id: "wifi", label: "Wifi", icon: Wifi },
+  { id: "power_backup", label: "Power Backup", icon: Zap },
+  { id: "dg_set", label: "DG set", icon: Settings },
+  { id: "smoking_allowed", label: "Smoking allowed in room", icon: Cigarette },
+  { id: "jain_food", label: "Jain food", icon: Utensils },
+  { id: "laundry", label: "Laundry", icon: Shirt },
+  { id: "pet_friendly", label: "Pet friendly", icon: Dog },
+  { id: "bonfire", label: "Bonfire", icon: Flame },
+  { id: "parking_free", label: "Parking(Free)", icon: CarFront },
+  { id: "parking_paid", label: "Parking(Paid)", icon: CarFront },
+  { id: "restaurant", label: "Restaurant", icon: Utensils },
+  { id: "barbeque", label: "Barbeque/Roasting", icon: Flame },
+  { id: "mini_gym", label: "Mini gym", icon: Dumbbell },
+];
+
 interface AlertState {
   visible: boolean;
   type: AlertType;
@@ -43,6 +77,18 @@ interface AlertState {
   secondaryLabel?: string;
   onPrimary?: () => void;
   onSecondary?: () => void;
+}
+
+interface KeyValuePair {
+  key: string;
+  value: string;
+  id: string;
+}
+
+
+interface AttributeBuilderProps {
+  value: string; // JSON string
+  onChange: (val: string) => void;
 }
 
 const ALERT_HIDDEN: AlertState = {
@@ -73,6 +119,8 @@ interface PropertyForm {
   post_office: string;
   latitude: string;
   longitude: string;
+  amenities: string;
+  additional_attributes: string;
 }
 
 type FormKey = keyof PropertyForm;
@@ -89,6 +137,8 @@ const INITIAL_FORM: PropertyForm = {
   post_office: "",
   latitude: "",
   longitude: "",
+  amenities: "",
+  additional_attributes: "",
 };
 
 const REQUIRED_FIELDS: FormKey[] = [
@@ -101,6 +151,208 @@ const REQUIRED_FIELDS: FormKey[] = [
   "latitude",
   "longitude",
 ];
+
+function AttributeBuilder({ value, onChange }: AttributeBuilderProps) {
+  const [pairs, setPairs] = useState<KeyValuePair[]>(() => {
+    try {
+      const parsed = JSON.parse(value || "{}");
+      return Object.entries(parsed).map(([k, v]) => ({
+        key: k,
+        value: String(v),
+        id: Math.random().toString(36).slice(2),
+      }));
+    } catch {
+      return [];
+    }
+  });
+
+  const sync = (updated: KeyValuePair[]) => {
+    setPairs(updated);
+    const obj: Record<string, string> = {};
+    updated.forEach(({ key, value }) => {
+      if (key.trim()) obj[key.trim()] = value;
+    });
+    onChange(Object.keys(obj).length ? JSON.stringify(obj) : "");
+  };
+
+  const addPair = () =>
+    sync([...pairs, { key: "", value: "", id: Math.random().toString(36).slice(2) }]);
+
+  const removePair = (id: string) => sync(pairs.filter((p) => p.id !== id));
+
+  const updatePair = (id: string, field: "key" | "value", val: string) =>
+    sync(pairs.map((p) => (p.id === id ? { ...p, [field]: val } : p)));
+
+  return (
+    <View style={styles.fieldWrapper}>
+      <View style={styles.labelRow}>
+        <Text style={styles.label}>Additional Attributes</Text>
+        <Text style={styles.optionalTag}>optional</Text>
+      </View>
+
+      {pairs.map((pair, index) => (
+        <View key={pair.id} style={attrStyles.pairRow}>
+          <View style={attrStyles.pairInputs}>
+            <TextInput
+              style={[styles.input, attrStyles.keyInput]}
+              placeholder="Key"
+              placeholderTextColor="#B0B8C8"
+              value={pair.key}
+              onChangeText={(v) => updatePair(pair.id, "key", v)}
+              autoCapitalize="none"
+            />
+            <Text style={attrStyles.separator}>:</Text>
+            <TextInput
+              style={[styles.input, attrStyles.valueInput]}
+              placeholder="Value"
+              placeholderTextColor="#B0B8C8"
+              value={pair.value}
+              onChangeText={(v) => updatePair(pair.id, "value", v)}
+              autoCapitalize="none"
+            />
+          </View>
+          <TouchableOpacity
+            style={attrStyles.removeBtn}
+            onPress={() => removePair(pair.id)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <X size={14} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      ))}
+
+      {pairs.length === 0 && (
+        <View style={attrStyles.emptyState}>
+          <Text style={attrStyles.emptyText}>No attributes added yet</Text>
+        </View>
+      )}
+
+      <TouchableOpacity style={attrStyles.addBtn} onPress={addPair} activeOpacity={0.7}>
+        <Plus size={14} color={COLORS.primary} />
+        <Text style={attrStyles.addBtnText}>Add Attribute</Text>
+      </TouchableOpacity>
+
+      {pairs.some((p) => p.key.trim()) && (
+        <View style={attrStyles.previewBox}>
+          <Text style={attrStyles.previewLabel}>JSON Preview</Text>
+          <Text style={attrStyles.previewText}>
+            {JSON.stringify(
+              Object.fromEntries(pairs.filter((p) => p.key.trim()).map((p) => [p.key.trim(), p.value])),
+              null,
+              2
+            )}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const COLORS = {
+  primary: "#4F6EF7",
+  primaryLight: "#EEF1FE",
+  activeBg: "#F1F5F9",
+  activeText: "#4F6EF7",
+  inactiveText: "#475569",
+  mutedText: "#94A3B8",
+  border: "#E2E8F0",
+  danger: "#EF4444",
+  textPrimary: "#0F172A",
+  surfaceBg: "#F8FAFC",
+};
+
+// Styles for AttributeBuilder — add to your StyleSheet or keep separate
+const attrStyles = StyleSheet.create({
+  pairRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+    gap: 8,
+  },
+  pairInputs: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  keyInput: {
+    flex: 2,
+    fontSize: 13,
+    paddingVertical: 11,
+  },
+  separator: {
+    fontSize: 16,
+    color: COLORS.inactiveText,
+    fontWeight: "700",
+  },
+  valueInput: {
+    flex: 3,
+    fontSize: 13,
+    paddingVertical: 11,
+  },
+  removeBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyState: {
+    paddingVertical: 14,
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderStyle: "dashed",
+  },
+  emptyText: {
+    fontSize: 12,
+    color: "#94A3B8",
+    fontWeight: "500",
+  },
+  addBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderStyle: "dashed",
+    backgroundColor: "#EEF1FE",
+    marginBottom: 10,
+  },
+  addBtnText: {
+    fontSize: 13,
+    color: COLORS.primary,
+    fontWeight: "700",
+  },
+  previewBox: {
+    backgroundColor: "#0F172A",
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 4,
+  },
+  previewLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#64748B",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  previewText: {
+    fontSize: 12,
+    color: "#7DD3FC",
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    lineHeight: 18,
+  },
+});
+
 
 function validate(form: PropertyForm, propertyImages: string[]): string | null {
   for (const key of REQUIRED_FIELDS) {
@@ -140,6 +392,16 @@ function buildFormData(form: PropertyForm, propertyImages: string[]): FormData {
 }
 
 
+
+const INDIA_STATES = [
+  "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam",
+  "Bihar", "Chandigarh", "Chhattisgarh", "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir",
+  "Jharkhand", "Karnataka", "Kerala", "Ladakh", "Lakshadweep", "Madhya Pradesh",
+  "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha",
+  "Puducherry", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana",
+  "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"
+];
 
 async function getCurrentLocation(): Promise<{
   lat: string;
@@ -267,6 +529,97 @@ function CategoryDropdown({
               </TouchableOpacity>
             );
           })}
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+interface SearchableStateDropdownProps {
+  value: string;
+  onChange: (val: string) => void;
+}
+
+function SearchableStateDropdown({ value, onChange }: SearchableStateDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filteredStates = INDIA_STATES.filter(s => s.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <View style={styles.fieldWrapper}>
+      <View style={styles.labelRow}>
+        <Text style={styles.label}>State</Text>
+      </View>
+
+      <TouchableOpacity
+        style={[styles.input, styles.dropdownTrigger]}
+        onPress={() => { setOpen(true); setSearch(""); }}
+        activeOpacity={0.7}
+      >
+        <Text style={value ? styles.dropdownSelectedText : styles.dropdownPlaceholder}>
+          {value || "Select a state"}
+        </Text>
+        <Text style={styles.dropdownChevron}>{open ? "▲" : "▼"}</Text>
+      </TouchableOpacity>
+
+      <Modal
+        visible={open}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setOpen(false)}
+        />
+        <View style={[styles.modalSheet, { height: "70%" }]}>
+          <View style={styles.modalHandle} />
+          <Text style={styles.modalTitle}>Select State</Text>
+
+          <TextInput
+            style={[styles.input, { marginBottom: 16 }]}
+            placeholder="Search state..."
+            placeholderTextColor={COLORS.mutedText}
+            value={search}
+            onChangeText={setSearch}
+            autoFocus
+          />
+
+          <FlatList
+            data={filteredStates}
+            keyExtractor={item => item}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => {
+              const isSelected = item === value;
+              return (
+                <TouchableOpacity
+                  style={[
+                    styles.categoryRow,
+                    isSelected && styles.categoryRowSelected,
+                  ]}
+                  onPress={() => {
+                    onChange(item);
+                    setOpen(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.categoryRowText}>
+                    <Text
+                      style={[
+                        styles.categoryRowName,
+                        isSelected && styles.categoryRowNameSelected,
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                  </View>
+                  {isSelected && <Text style={styles.categoryRowCheck}>✓</Text>}
+                </TouchableOpacity>
+              );
+            }}
+          />
         </View>
       </Modal>
     </View>
@@ -403,11 +756,74 @@ function Section({
 }
 
 
+interface AmenitiesGridProps {
+  selectedAmenities: string;
+  onChange: (amenities: string) => void;
+}
+
+function AmenitiesGrid({ selectedAmenities, onChange }: AmenitiesGridProps) {
+  const selectedList = selectedAmenities
+    ? selectedAmenities.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  const toggleAmenity = (label: string) => {
+    let newList = [...selectedList];
+    if (newList.includes(label)) {
+      newList = newList.filter((item) => item !== label);
+    } else {
+      newList.push(label);
+    }
+    onChange(newList.join(", "));
+  };
+
+  return (
+    <View style={styles.amenitiesGrid}>
+      {PREDEFINED_AMENITIES.map((amenity) => {
+        const isSelected = selectedList.includes(amenity.label);
+        const Icon = amenity.icon;
+        return (
+          <TouchableOpacity
+            key={amenity.id}
+            style={[
+              styles.amenityCard,
+              isSelected && styles.amenityCardSelected,
+            ]}
+            onPress={() => toggleAmenity(amenity.label)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.amenityIconContainer}>
+              <Icon
+                size={24}
+                color={isSelected ? COLORS.primary : COLORS.inactiveText}
+              />
+            </View>
+            <Text
+              style={[
+                styles.amenityLabel,
+                isSelected && styles.amenityLabelSelected,
+              ]}
+              numberOfLines={2}
+            >
+              {amenity.label}
+            </Text>
+            {isSelected && (
+              <View style={styles.amenityCheck}>
+                <CheckCircle2 size={16} color={COLORS.primary} />
+              </View>
+            )}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function AddProperty() {
   const router = useRouter();
   const { width: windowWidth } = useWindowDimensions();
   const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
   const [properties, setProperties] = useState<any[]>([]);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
 
@@ -450,6 +866,8 @@ export default function AddProperty() {
 
   const [locationLoading, setLocationLoading] = useState(false);
 
+
+
   const handleGetLocation = async () => {
     setLocationLoading(true);
     try {
@@ -473,6 +891,8 @@ export default function AddProperty() {
       setLocationLoading(false);
     }
   };
+
+
 
   useEffect(() => {
     const fetchProperties = async () => {
@@ -498,6 +918,8 @@ export default function AddProperty() {
     }
   }, [token, showForm]);
 
+
+
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -519,6 +941,7 @@ export default function AddProperty() {
     };
     fetchCategories();
   }, []);
+
 
 
 
@@ -639,13 +1062,14 @@ export default function AddProperty() {
           <View style={styles.listHeader}>
             <View>
               <Text style={styles.pageTitle}>My Properties</Text>
-              <Text style={styles.pageSubtitle}>Manage your listed rental spots</Text>
+              <Text style={styles.pageSubtitle}>Manage your listed Properties</Text>
             </View>
             <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
               <TouchableOpacity style={styles.addBtn} onPress={() => {
                 setEditingPropertyId(null);
                 setForm(INITIAL_FORM);
                 setPropertyImages([]);
+                setCurrentStep(1);
                 setShowForm(true);
               }} activeOpacity={0.8}>
                 <Plus size={18} color="#fff" strokeWidth={3} />
@@ -707,7 +1131,7 @@ export default function AddProperty() {
                       <View style={styles.propertyStat}>
                         <Bed size={16} color={COLORS.primary} />
                         <Text style={styles.propertyStatText}>
-                          {item.room_details?.length ? `${item.room_details.length} Room${item.room_details.length > 1 ? 's' : ''}` : 'No Rooms Added'}
+                          {item.room_details?.length ? `${item.room_details.length} Room${item.room_details.length > 1 ? 's' : ''}` : 'No Rooms'}
                         </Text>
                       </View>
 
@@ -728,8 +1152,11 @@ export default function AddProperty() {
                               post_office: item.post_office || "",
                               latitude: item.latitude || "",
                               longitude: item.longitude || "",
+                              amenities: item.amenities ? (Array.isArray(item.amenities) ? item.amenities.join(", ") : item.amenities) : "",
+                              additional_attributes: item.additional_attributes ? (typeof item.additional_attributes === "string" ? item.additional_attributes : JSON.stringify(item.additional_attributes)) : "",
                             });
                             setPropertyImages(item.property_images || []);
+                            setCurrentStep(1);
                             setShowForm(true);
                           }}
                         >
@@ -762,147 +1189,218 @@ export default function AddProperty() {
         onRequestClose={() => setShowForm(false)}
       >
         <KeyboardAvoidingView
-          style={styles.mainContainer}
+          style={styles.modalBg}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <View style={styles.formHeaderRow}>
             <TouchableOpacity style={styles.backBtn} onPress={() => setShowForm(false)}>
               <X size={24} color={COLORS.inactiveText} />
             </TouchableOpacity>
-            <Text style={styles.formHeaderText}>{editingPropertyId ? "Edit Property" : "Create Property"}</Text>
+            <View>
+              <Text style={styles.formHeaderText}>{editingPropertyId ? "Edit Property" : "Create Property"}</Text>
+              <Text style={styles.formHeaderSub}>Step {currentStep} of 4</Text>
+            </View>
             <View style={{ width: 24 }} />
           </View>
+
+          {/* Premium Step Indicator */}
+          <View style={styles.premiumStepContainer}>
+            {[1, 2, 3, 4].map((step) => (
+              <View key={step} style={styles.premiumStepWrapper}>
+                <View
+                  style={[
+                    styles.premiumStepDot,
+                    currentStep >= step && styles.premiumStepDotActive,
+                  ]}
+                />
+                {step < 4 && (
+                  <View
+                    style={[
+                      styles.premiumStepLine,
+                      currentStep > step && styles.premiumStepLineActive,
+                    ]}
+                  />
+                )}
+              </View>
+            ))}
+          </View>
+
           <ScrollView
             style={styles.container}
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
+            {currentStep === 1 && (
+              <Section title="1. Property Info">
+                <Field
+                  label="Property Name"
+                  value={form.property_name}
+                  onChange={set("property_name")}
+                  placeholder="e.g. Sunset Villa"
+                />
 
-            <Section title="Property Info">
-              <Field
-                label="Property Name"
-                value={form.property_name}
-                onChange={set("property_name")}
-                placeholder="e.g. Sunset Villa"
-              />
+                <CategoryDropdown
+                  categories={categories}
+                  value={form.category_id}
+                  onChange={(id) => setForm((prev) => ({ ...prev, category_id: id }))}
+                  loading={categoriesLoading}
+                />
 
-              <CategoryDropdown
-                categories={categories}
-                value={form.category_id}
-                onChange={(id) => setForm((prev) => ({ ...prev, category_id: id }))}
-                loading={categoriesLoading}
-              />
+                <Field
+                  label="Display Address"
+                  value={form.address_display}
+                  onChange={set("address_display")}
+                  optional
+                />
 
-              <Field
-                label="Display Address"
-                value={form.address_display}
-                onChange={set("address_display")}
-                optional
-              />
+                <AttributeBuilder
+                  value={form.additional_attributes}
+                  onChange={set("additional_attributes")}
+                />
+              </Section>
+            )}
 
-              <ImagePickerField
-                label="Property Images"
-                images={propertyImages}
-                onChange={setPropertyImages}
-                onError={(msg) => showAlert({
-                  type: "warning",
-                  title: "Permission required",
-                  message: msg,
-                  primaryLabel: "OK",
-                  onPrimary: dismissAlert,
-                })}
-              />
-            </Section>
+            {currentStep === 2 && (
+              <Section title="2. Location">
+                <Field
+                  label="Village"
+                  value={form.village}
+                  onChange={set("village")}
+                  optional
+                />
+                <Field
+                  label="District"
+                  value={form.district}
+                  onChange={set("district")}
+                />
 
-            <Section title="Location">
-              <Field label="State" value={form.state} onChange={set("state")} />
-              <Field label="City" value={form.city} onChange={set("city")} />
-              <Field
-                label="District"
-                value={form.district}
-                onChange={set("district")}
-              />
-              <Field
-                label="Village"
-                value={form.village}
-                onChange={set("village")}
-                optional
-              />
-              <Field
-                label="Pincode"
-                value={form.pincode}
-                onChange={set("pincode")}
-                numeric
-              />
-              <Field
-                label="Post Office"
-                value={form.post_office}
-                onChange={set("post_office")}
-                optional
-              />
+                <Field label="City" value={form.city} onChange={set("city")} />
+                <SearchableStateDropdown value={form.state} onChange={set("state")} />
 
-              {/* ── Coordinates ── */}
-              <View style={styles.fieldWrapper}>
-                {/* Label row with GPS button */}
-                <View style={styles.labelRow}>
-                  <Text style={styles.label}>Coordinates</Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.locationBtn,
-                      locationLoading && styles.locationBtnDisabled,
-                    ]}
-                    onPress={handleGetLocation}
-                    disabled={locationLoading}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.locationBtnText}>
-                      {locationLoading ? "Fetching..." : "📍 Use Current Location"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                <Field
+                  label="Pincode"
+                  value={form.pincode}
+                  onChange={set("pincode")}
+                  numeric
+                />
+                <Field
+                  label="Post Office"
+                  value={form.post_office}
+                  onChange={set("post_office")}
+                  optional
+                />
 
-                {/* Side-by-side lat/lng inputs */}
-                <View style={styles.coordRow}>
-                  <View style={styles.coordField}>
-                    <Text style={styles.coordLabel}>Latitude</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="e.g. 26.748819"
-                      placeholderTextColor="#aaa"
-                      value={form.latitude}
-                      onChangeText={set("latitude")}
-                      keyboardType="numeric"
-                    />
+                {/* ── Coordinates ── */}
+                <View style={styles.fieldWrapper}>
+                  {/* Label row with GPS button */}
+                  <View style={styles.labelRow}>
+                    <Text style={styles.label}>Coordinates</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.locationBtn,
+                        locationLoading && styles.locationBtnDisabled,
+                      ]}
+                      onPress={handleGetLocation}
+                      disabled={locationLoading}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.locationBtnText}>
+                        {locationLoading ? "Fetching..." : "📍 Use Current Location"}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                  <View style={styles.coordField}>
-                    <Text style={styles.coordLabel}>Longitude</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="e.g. 94.209869"
-                      placeholderTextColor="#aaa"
-                      value={form.longitude}
-                      onChangeText={set("longitude")}
-                      keyboardType="numeric"
-                    />
+
+                  {/* Side-by-side lat/lng inputs */}
+                  <View style={styles.coordRow}>
+                    <View style={styles.coordField}>
+                      <Text style={styles.coordLabel}>Latitude</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="e.g. 26.748819"
+                        placeholderTextColor="#aaa"
+                        value={form.latitude}
+                        onChangeText={set("latitude")}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    <View style={styles.coordField}>
+                      <Text style={styles.coordLabel}>Longitude</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="e.g. 94.209869"
+                        placeholderTextColor="#aaa"
+                        value={form.longitude}
+                        onChangeText={set("longitude")}
+                        keyboardType="numeric"
+                      />
+                    </View>
                   </View>
                 </View>
-              </View>
-            </Section>
+              </Section>
+            )}
 
+            {currentStep === 3 && (
+              <Section title="3. Property Amenities">
+                <AmenitiesGrid
+                  selectedAmenities={form.amenities}
+                  onChange={set("amenities")}
+                />
+              </Section>
+            )}
 
-
-            <TouchableOpacity
-              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.submitText}>
-                {loading ? "Saving..." : editingPropertyId ? "Update Property" : "Create Property"}
-              </Text>
-            </TouchableOpacity>
+            {currentStep === 4 && (
+              <Section title="Property Images">
+                <ImagePickerField
+                  label="Upload Photos"
+                  images={propertyImages}
+                  onChange={setPropertyImages}
+                  onError={(msg) => showAlert({
+                    type: "warning",
+                    title: "Permission required",
+                    message: msg,
+                    primaryLabel: "OK",
+                    onPrimary: dismissAlert,
+                  })}
+                />
+              </Section>
+            )}
           </ScrollView>
+
+          {/* Pinned Footer */}
+          <View style={styles.pinnedFooter}>
+            <View style={styles.footerRow}>
+              {currentStep > 1 && (
+                <TouchableOpacity
+                  style={[styles.footerBtn, styles.prevBtn]}
+                  onPress={() => setCurrentStep((prev) => prev - 1)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.prevBtnText}>Previous</Text>
+                </TouchableOpacity>
+              )}
+              {currentStep < 4 ? (
+                <TouchableOpacity
+                  style={[styles.footerBtn, styles.nextBtn]}
+                  onPress={() => setCurrentStep((prev) => prev + 1)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.nextBtnText}>Next</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.footerBtn, styles.nextBtn, loading && styles.submitButtonDisabled]}
+                  onPress={handleSubmit}
+                  disabled={loading}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.nextBtnText}>
+                    {loading ? "Saving..." : editingPropertyId ? "Update" : "Create"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
 
           <AlertPopUp
             visible={alert.visible}
@@ -922,289 +1420,600 @@ export default function AddProperty() {
 }
 
 
-const COLORS = {
-  primary: "#4F6EF7",
-  activeBg: "#F1F5F9",
-  activeText: "#4F6EF7",
-  inactiveText: "#475569",
-  border: "#F1F5F9",
-  danger: "#EF4444",
-};
 
 const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: "#fff" },
-  container: { flex: 1, backgroundColor: "#fff" },
-  content: { padding: 20, paddingBottom: 48 },
+  // ── Root ──
+  mainContainer: { flex: 1, backgroundColor: "#F8FAFC" },
+  modalBg: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: { flex: 1 },
+  content: { padding: 20, paddingBottom: 32 },
+
+  // ── List Page ──
   listContainer: { flex: 1, padding: 20 },
-  listHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  pageTitle: { fontSize: 24, fontWeight: "700", color: COLORS.activeText },
-  pageSubtitle: { fontSize: 13, color: COLORS.inactiveText, marginTop: 4 },
-  addBtn: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, gap: 6 },
-  addBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
-  loadingText: { textAlign: "center", marginTop: 40, color: COLORS.inactiveText },
-  emptyState: { flex: 1, justifyContent: "center", alignItems: "center", marginTop: 60 },
-  emptyStateText: { fontSize: 18, fontWeight: "600", color: COLORS.inactiveText, marginTop: 16 },
-  emptyStateSubtext: { fontSize: 14, color: COLORS.inactiveText, marginTop: 8 },
-  listContent: { paddingBottom: 40 },
-  propertyCard: { backgroundColor: "#fff", borderRadius: 18, overflow: "hidden", marginBottom: 24, borderWidth: 1, borderColor: COLORS.border, shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 5 },
-  propertyCardImage: { width: "100%", height: 220, backgroundColor: COLORS.activeBg },
-  propertyCardImagePlaceholder: { width: "100%", height: 220, backgroundColor: COLORS.activeBg, justifyContent: "center", alignItems: "center" },
-  propertyCategoryBadge: { position: "absolute", top: 16, right: 16, backgroundColor: "rgba(0,0,0,0.65)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  propertyCategoryText: { color: "#fff", fontSize: 12, fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" },
-  propertyCardInfo: { padding: 18 },
-  propertyCardTitle: { fontSize: 20, fontWeight: "800", color: COLORS.activeText, marginBottom: 8 },
-  propertyCardLocation: { flexDirection: "row", alignItems: "center", gap: 6 },
-  propertyCardLocationText: { fontSize: 14, color: COLORS.inactiveText, fontWeight: "500", flexShrink: 1 },
-  propertyDetailsGrid: { flexDirection: "row", flexWrap: "wrap", marginTop: 12, borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 12, rowGap: 10 },
-  propertyDetailItem: { width: "50%", paddingRight: 8 },
-  propertyDetailLabelRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 2 },
-  propertyDetailLabel: { fontSize: 10, color: COLORS.inactiveText, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: "600" },
-  propertyDetailValue: { fontSize: 13, color: COLORS.activeText, fontWeight: "500" },
-  propertyStatsRow: { flexDirection: "row", marginTop: 10, justifyContent: "space-between", alignItems: "center" },
-  propertyStat: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.activeBg, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, gap: 6 },
-  propertyStatText: { fontSize: 13, fontWeight: "600", color: COLORS.primary },
-  addRoomBtnOnCard: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, gap: 4 },
-  editBtnOnCard: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.inactiveText, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, gap: 4 },
-  addRoomBtnOnCardText: { fontSize: 12, fontWeight: "600", color: "#fff" },
-  formHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  backBtn: { padding: 4 },
-  formHeaderText: { fontSize: 18, fontWeight: "600", color: COLORS.activeText },
-  // Add these to your StyleSheet
-  locationBtn: {
-    marginLeft: "auto",
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  locationBtnDisabled: {
-    backgroundColor: COLORS.inactiveText,
-  },
-  locationBtnText: {
-    color: "#fff",
-    fontSize: 11,
-    fontWeight: "500",
-  },
-  coordRow: {
+  listHeader: {
     flexDirection: "row",
-    gap: 10,
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 24,
   },
-  coordField: {
-    flex: 1,
+  pageTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: COLORS.primary,
+    letterSpacing: -0.4,
   },
-  coordLabel: {
-    fontSize: 12,
-    color: "#888",
-    marginBottom: 5,
+  pageSubtitle: {
+    fontSize: 13,
+    color: COLORS.mutedText,
+    marginTop: 3,
     fontWeight: "400",
   },
-  heading: {
-    // Deprecated
+  listContent: { paddingBottom: 48 },
+
+  // ── Add Button ──
+  addBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 14,
+    gap: 7,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  addBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+
+  // ── States ──
+  loadingText: {
+    textAlign: "center",
+    marginTop: 48,
+    color: COLORS.mutedText,
+    fontSize: 14,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 80,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: COLORS.inactiveText,
+    marginTop: 18,
+  },
+  emptyStateSubtext: {
+    fontSize: 13,
+    color: COLORS.mutedText,
+    marginTop: 6,
   },
 
-  section: {
+  // ── Property Card ──
+  propertyCard: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 20,
+    overflow: "hidden",
     marginBottom: 20,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: COLORS.border,
     shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.07,
+    shadowRadius: 20,
+    elevation: 5,
+  },
+  propertyCardImage: {
+    width: "100%",
+    height: 220,
+    backgroundColor: COLORS.primaryLight,
+  },
+  propertyCardImagePlaceholder: {
+    width: "100%",
+    height: 220,
+    backgroundColor: COLORS.primaryLight,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  propertyCategoryBadge: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    backgroundColor: "rgba(15,23,42,0.72)",
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  propertyCategoryText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+  },
+  propertyCardInfo: { padding: 18 },
+  propertyCardTitle: {
+    fontSize: 19,
+    fontWeight: "800",
+    color: COLORS.textPrimary,
+    marginBottom: 6,
+    letterSpacing: -0.3,
+  },
+  propertyCardLocation: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  propertyCardLocationText: {
+    fontSize: 13,
+    color: COLORS.inactiveText,
+    fontWeight: "500",
+    flexShrink: 1,
+  },
+  propertyStatsRow: {
+    flexDirection: "row",
+    marginTop: 14,
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 14,
+    borderTopWidth: 0.5,
+    borderTopColor: COLORS.border,
+  },
+  propertyStat: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    gap: 6,
+  },
+  propertyStatText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.primary,
+  },
+  addRoomBtnOnCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 5,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.28,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  editBtnOnCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.activeBg,
+    borderWidth: 0.5,
+    borderColor: COLORS.border,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 5,
+  },
+  addRoomBtnOnCardText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#fff",
+  },
+
+  // ── Form Header ──
+  formHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 20 : 16,
+    paddingBottom: 16,
+    backgroundColor: "#fff",
+    borderBottomWidth: 0.5,
+    borderBottomColor: COLORS.border,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.04,
     shadowRadius: 8,
-    elevation: 1,
+    elevation: 3,
+    zIndex: 10,
+  },
+  backBtn: {
+    padding: 8,
+    backgroundColor: COLORS.activeBg,
+    borderRadius: 12,
+  },
+  formHeaderText: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+    textAlign: "center",
+  },
+  formHeaderSub: {
+    fontSize: 12,
+    color: COLORS.mutedText,
+    textAlign: "center",
+    marginTop: 2,
+    fontWeight: "600",
+  },
+
+  // ── Premium Step Bar ──
+  premiumStepContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    backgroundColor: "#fff",
+    borderBottomWidth: 0.5,
+    borderBottomColor: COLORS.border,
+    gap: 0,
+  },
+  premiumStepWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  premiumStepDot: {
+    width: 32,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.border,
+  },
+  premiumStepDotActive: {
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  premiumStepLine: {
+    width: 28,
+    height: 2,
+    backgroundColor: COLORS.border,
+    marginHorizontal: 3,
+  },
+  premiumStepLineActive: {
+    backgroundColor: COLORS.primary,
+  },
+
+  // ── Section Card ──
+  section: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 22,
+    marginBottom: 16,
+    shadowColor: "#94A3B8",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.primary,
+    marginBottom: 18,
+    letterSpacing: -0.2,
+  },
+  sectionDivider: { display: "none" },
+
+  // ── Fields ──
+  fieldWrapper: { marginBottom: 14 },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 7,
+  },
+  label: {
+    fontSize: 12,
     fontWeight: "700",
     color: COLORS.inactiveText,
     textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 10,
+    letterSpacing: 0.5,
   },
-  sectionDivider: { height: 1, backgroundColor: COLORS.activeBg, marginBottom: 16 },
-
-  fieldWrapper: { marginBottom: 16 },
-  labelRow: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
-  label: { fontSize: 13, fontWeight: "600", color: COLORS.inactiveText },
   optionalTag: {
-    marginLeft: 6,
-    fontSize: 11,
-    color: COLORS.inactiveText,
-    fontWeight: "400",
-  },
-  imageCount: { marginLeft: "auto", fontSize: 11, color: COLORS.inactiveText },
-
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: COLORS.inactiveText,
+    marginLeft: 7,
+    fontSize: 10,
+    color: COLORS.mutedText,
+    fontWeight: "600",
     backgroundColor: COLORS.activeBg,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 20,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
   },
-  inputMultiline: { height: 80, textAlignVertical: "top" },
+  imageCount: {
+    marginLeft: "auto",
+    fontSize: 11,
+    color: COLORS.primary,
+    fontWeight: "700",
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  input: {
+    backgroundColor: COLORS.activeBg,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: COLORS.textPrimary,
+    fontWeight: "500",
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  inputMultiline: {
+    height: 88,
+    textAlignVertical: "top",
+    paddingTop: 12,
+  },
 
-  // Dropdown
+  // ── Dropdown ──
   dropdownTrigger: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  dropdownSelected: { flexDirection: "row", alignItems: "center", gap: 8 },
-  dropdownSelectedText: { fontSize: 15, color: COLORS.activeText, fontWeight: "500" },
-  dropdownPlaceholder: { fontSize: 15, color: COLORS.inactiveText },
-  dropdownChevron: { fontSize: 11, color: COLORS.inactiveText },
+  dropdownSelected: { flexDirection: "row", alignItems: "center", gap: 10 },
+  dropdownSelectedText: {
+    fontSize: 15,
+    color: COLORS.primary,
+    fontWeight: "600",
+  },
+  dropdownPlaceholder: { fontSize: 15, color: COLORS.mutedText },
+  dropdownChevron: { fontSize: 10, color: COLORS.mutedText },
   dropdownCategoryThumb: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    backgroundColor: "#eee",
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: COLORS.primaryLight,
   },
 
-  // Modal Sheet
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.3)" },
+  // ── Category Modal ──
+  modalOverlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.45)" },
   modalSheet: {
     backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 44,
   },
   modalHandle: {
-    width: 36,
+    width: 40,
     height: 4,
-    backgroundColor: "#e0e0e0",
+    backgroundColor: COLORS.border,
     borderRadius: 2,
     alignSelf: "center",
-    marginBottom: 16,
+    marginBottom: 18,
   },
   modalTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: COLORS.inactiveText,
+    fontSize: 17,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
     marginBottom: 16,
   },
-
-  // Category rows in modal
   categoryRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderRadius: 10,
+    paddingVertical: 13,
+    paddingHorizontal: 12,
+    borderRadius: 14,
     marginBottom: 4,
     gap: 12,
   },
-  categoryRowSelected: { backgroundColor: COLORS.activeBg },
+  categoryRowSelected: { backgroundColor: COLORS.primaryLight },
   categoryRowThumb: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: COLORS.activeBg,
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: COLORS.primaryLight,
   },
   categoryRowText: { flex: 1 },
-  categoryRowName: { fontSize: 15, fontWeight: "500", color: COLORS.inactiveText },
-  categoryRowNameSelected: { color: COLORS.activeText, fontWeight: "600" },
-  categoryRowDesc: { fontSize: 12, color: COLORS.inactiveText, marginTop: 2 },
-  categoryRowCheck: { fontSize: 16, color: COLORS.primary, fontWeight: "700" },
+  categoryRowName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.inactiveText,
+  },
+  categoryRowNameSelected: {
+    color: COLORS.primary,
+    fontWeight: "700",
+  },
+  categoryRowDesc: {
+    fontSize: 12,
+    color: COLORS.mutedText,
+    marginTop: 2,
+  },
+  categoryRowCheck: {
+    fontSize: 18,
+    color: COLORS.primary,
+    fontWeight: "800",
+  },
 
-  // Image picker
-  thumbnailList: { marginBottom: 10 },
-  thumbnailWrapper: { position: "relative", marginRight: 8 },
+  // ── Image Picker ──
+  thumbnailList: { marginBottom: 12 },
+  thumbnailWrapper: { position: "relative", marginRight: 10 },
   thumbnail: {
-    width: 72,
-    height: 72,
-    borderRadius: 8,
-    backgroundColor: "#eee",
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: COLORS.activeBg,
   },
   removeBtn: {
     position: "absolute",
-    top: -6,
-    right: -6,
+    top: -7,
+    right: -7,
     backgroundColor: COLORS.danger,
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  removeBtnText: { color: "#fff", fontSize: 9, fontWeight: "800" },
+  pickButton: {
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderRadius: 14,
+    borderStyle: "dashed",
+    paddingVertical: 16,
+    alignItems: "center",
+    backgroundColor: COLORS.primaryLight,
+  },
+  pickButtonText: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: "700",
+  },
+
+  // ── Amenities ──
+  amenitiesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "space-between",
+  },
+  amenityCard: {
+    width: "48%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  amenityCardSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
+  },
+  amenityIconContainer: { marginBottom: 2 },
+  amenityLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.inactiveText,
+    textAlign: "center",
+    lineHeight: 17,
+  },
+  amenityLabelSelected: {
+    color: COLORS.primary,
+    fontWeight: "700",
+  },
+  amenityCheck: { position: "absolute", top: 8, right: 8 },
+
+  // ── Coordinates ──
+  locationBtn: {
+    marginLeft: "auto",
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 10,
-    width: 20,
-    height: 20,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  locationBtnDisabled: { backgroundColor: COLORS.mutedText },
+  locationBtnText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+  coordRow: { flexDirection: "row", gap: 12 },
+  coordField: { flex: 1 },
+  coordLabel: {
+    fontSize: 11,
+    color: COLORS.mutedText,
+    marginBottom: 6,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+
+  // ── Pinned Footer ──
+  pinnedFooter: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === "ios" ? 34 : 20,
+    borderTopWidth: 0.5,
+    borderTopColor: COLORS.border,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  footerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  footerBtn: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  removeBtnText: { color: "#fff", fontSize: 9, fontWeight: "700" },
-  pickButton: {
+  prevBtn: {
+    backgroundColor: COLORS.activeBg,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 10,
-    borderStyle: "dashed",
-    paddingVertical: 12,
-    alignItems: "center",
-    backgroundColor: COLORS.activeBg,
   },
-  pickButtonText: { fontSize: 13, color: COLORS.primary, fontWeight: "500" },
-
-  // Submit
-  submitButton: {
+  prevBtnText: {
+    color: COLORS.inactiveText,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  nextBtn: {
     backgroundColor: COLORS.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginTop: 8,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.32,
+    shadowRadius: 10,
+    elevation: 6,
   },
-  submitButtonDisabled: { backgroundColor: COLORS.inactiveText },
-  submitText: {
-    color: "#fff",
-    textAlign: "center",
-    fontSize: 16,
-    fontWeight: "600",
-    letterSpacing: 0.2,
+  nextBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  submitButtonDisabled: {
+    backgroundColor: COLORS.mutedText,
+    shadowOpacity: 0,
+    elevation: 0,
   },
 
-  // Dynamic Rooms
-  roomCard: {
-    backgroundColor: COLORS.activeBg,
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: 16,
-  },
-  roomCardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  roomCardTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.activeText,
-  },
-  roomCardRemove: {
-    fontSize: 12,
-    color: COLORS.danger,
-    fontWeight: "500",
-  },
-  roomRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  roomRowField: {
-    flex: 1,
-  },
-  addRoomBtn: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    borderStyle: "dashed",
-    paddingVertical: 12,
-    alignItems: "center",
-    backgroundColor: COLORS.activeBg,
-    marginBottom: 16,
-  },
-  addRoomBtnText: {
-    fontSize: 13,
-    color: COLORS.primary,
-    fontWeight: "500",
-  },
+  // ── Unused but kept for compatibility ──
+  heading: {},
+  propertyDetailsGrid: {},
+  propertyDetailItem: {},
+  propertyDetailLabelRow: {},
+  propertyDetailLabel: {},
+  propertyDetailValue: {},
+  submitButton: {},
+  submitText: {},
+  roomCard: {},
+  roomCardHeader: {},
+  roomCardTitle: {},
+  roomCardRemove: {},
+  roomRow: {},
+  roomRowField: {},
+  addRoomBtn: {},
+  addRoomBtnText: {},
+  stepIndicatorContainer: {},
+  stepDot: {},
+  stepDotActive: {},
 });

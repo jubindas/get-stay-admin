@@ -25,9 +25,9 @@ import axios from "axios";
 
 import { router } from "expo-router";
 
+import RevenueChart from "../components/RevenueChart";
 import VacancyModal from "../components/VacancyModal";
 import WalkInBookingModal from "../components/WalkInBookingModal";
-import RevenueChart from "../components/RevenueChart";
 
 const { width } = Dimensions.get("window");
 
@@ -51,12 +51,17 @@ export default function ZenDashboard() {
   const [vacancyModalVisible, setVacancyModalVisible] = useState(false);
   const [showBookingForm, setShowBookingForm] = useState(false);
 
+
+
+
   const todayDate = new Date();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   const { token } = useAuth();
+
+
 
   useEffect(() => {
     Animated.parallel([
@@ -152,7 +157,7 @@ export default function ZenDashboard() {
             value="8"
             color={COLORS.orangeChart}
             bgColor="#FFF7ED"
-            onPress={() => setShowBookingForm(true)}
+            onPress={() => router.push("/book-rooms")}
           />
           <StatusCard
             icon="log-out-outline"
@@ -238,7 +243,7 @@ export default function ZenDashboard() {
         year={todayDate.getFullYear()}
       />
 
-      <WalkInBookingModal 
+      <WalkInBookingModal
         visible={showBookingForm}
         onClose={() => setShowBookingForm(false)}
       />

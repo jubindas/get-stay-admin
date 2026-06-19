@@ -3,16 +3,22 @@ import { Stack, useRouter } from "expo-router";
 import React, { useEffect } from "react";
 
 function NavigationGuard({ children }: { children: React.ReactNode }) {
-
-  const { token } = useAuth();
-
+  const { token, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
+    if (loading) return;
+
     if (token) {
       router.replace("/dashboard");
+    } else {
+      router.replace("/");
     }
-  }, [token]);
+  }, [token, loading]);
+
+  if (loading) {
+    return null; // or a splash screen
+  }
 
   return <>{children}</>;
 }

@@ -187,7 +187,7 @@ function FormField({
   );
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
+
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
@@ -197,7 +197,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
 
-  // Single alert state drives the AlertPopUp
+ 
   const [alert, setAlert] = useState<AlertState>(ALERT_HIDDEN);
 
   const dismissAlert = () => setAlert((a) => ({ ...a, visible: false }));
@@ -205,7 +205,7 @@ export default function LoginScreen() {
   const showAlert = (config: Omit<AlertState, "visible">) =>
     setAlert({ ...config, visible: true });
 
-  // ─── Handlers ───────────────────────────────────────────────────────────────
+
   const handleLogin = async () => {
     if (!email || !password) {
       showAlert({
