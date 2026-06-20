@@ -34,6 +34,7 @@ import {
 } from "lucide-react-native";
 
 import { useLocalSearchParams } from "expo-router";
+
 import React, { useEffect, useState } from "react";
 
 import {
@@ -133,7 +134,9 @@ const INITIAL_ROOM: RoomEntry = {
 };
 
 const RoomUnitManager = ({ room, token }: { room: any, token: string | null }) => {
+  
   const [units, setUnits] = useState([{ room_number: "", floor: "", notes: "", status: "Available", saved: false }]);
+  
   const [saving, setSaving] = useState(false);
 
   const addUnitField = () => setUnits([...units, { room_number: "", floor: "", notes: "", status: "Available", saved: false }]);
@@ -679,6 +682,8 @@ export default function AddRooms() {
       setLoading(false);
     }
   };
+
+
 
 
   return (

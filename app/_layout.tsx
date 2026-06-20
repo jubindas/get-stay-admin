@@ -17,7 +17,7 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
   }, [token, loading]);
 
   if (loading) {
-    return null; // or a splash screen
+    return null;
   }
 
   return <>{children}</>;

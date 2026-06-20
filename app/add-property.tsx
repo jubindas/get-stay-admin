@@ -18,7 +18,6 @@ import {
   Bed,
   Building,
   CarFront,
-  CheckCircle2,
   Cigarette,
   Dog,
   Dumbbell,
@@ -31,7 +30,7 @@ import {
   Utensils,
   Wifi,
   X,
-  Zap
+  Zap,
 } from "lucide-react-native";
 
 import {
@@ -47,7 +46,7 @@ import {
   TextInput,
   TouchableOpacity,
   useWindowDimensions,
-  View
+  View,
 } from "react-native";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -85,7 +84,6 @@ interface KeyValuePair {
   id: string;
 }
 
-
 interface AttributeBuilderProps {
   value: string; // JSON string
   onChange: (val: string) => void;
@@ -104,8 +102,6 @@ interface Category {
   description: string | null;
   image_url: string | null;
 }
-
-
 
 interface PropertyForm {
   property_name: string;
@@ -176,7 +172,10 @@ function AttributeBuilder({ value, onChange }: AttributeBuilderProps) {
   };
 
   const addPair = () =>
-    sync([...pairs, { key: "", value: "", id: Math.random().toString(36).slice(2) }]);
+    sync([
+      ...pairs,
+      { key: "", value: "", id: Math.random().toString(36).slice(2) },
+    ]);
 
   const removePair = (id: string) => sync(pairs.filter((p) => p.id !== id));
 
@@ -190,7 +189,7 @@ function AttributeBuilder({ value, onChange }: AttributeBuilderProps) {
         <Text style={styles.optionalTag}>optional</Text>
       </View>
 
-      {pairs.map((pair, index) => (
+      {pairs.map((pair) => (
         <View key={pair.id} style={attrStyles.pairRow}>
           <View style={attrStyles.pairInputs}>
             <TextInput
@@ -201,7 +200,7 @@ function AttributeBuilder({ value, onChange }: AttributeBuilderProps) {
               onChangeText={(v) => updatePair(pair.id, "key", v)}
               autoCapitalize="none"
             />
-            <Text style={attrStyles.separator}>:</Text>
+            <View style={attrStyles.separatorDot} />
             <TextInput
               style={[styles.input, attrStyles.valueInput]}
               placeholder="Value"
@@ -216,7 +215,7 @@ function AttributeBuilder({ value, onChange }: AttributeBuilderProps) {
             onPress={() => removePair(pair.id)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <X size={14} color="#fff" />
+            <X size={13} color={COLORS.danger} />
           </TouchableOpacity>
         </View>
       ))}
@@ -227,23 +226,14 @@ function AttributeBuilder({ value, onChange }: AttributeBuilderProps) {
         </View>
       )}
 
-      <TouchableOpacity style={attrStyles.addBtn} onPress={addPair} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={attrStyles.addBtn}
+        onPress={addPair}
+        activeOpacity={0.7}
+      >
         <Plus size={14} color={COLORS.primary} />
         <Text style={attrStyles.addBtnText}>Add Attribute</Text>
       </TouchableOpacity>
-
-      {pairs.some((p) => p.key.trim()) && (
-        <View style={attrStyles.previewBox}>
-          <Text style={attrStyles.previewLabel}>JSON Preview</Text>
-          <Text style={attrStyles.previewText}>
-            {JSON.stringify(
-              Object.fromEntries(pairs.filter((p) => p.key.trim()).map((p) => [p.key.trim(), p.value])),
-              null,
-              2
-            )}
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -261,13 +251,12 @@ const COLORS = {
   surfaceBg: "#F8FAFC",
 };
 
-// Styles for AttributeBuilder — add to your StyleSheet or keep separate
 const attrStyles = StyleSheet.create({
   pairRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
-    gap: 8,
+    marginBottom: 8,
+    gap: 6,
   },
   pairInputs: {
     flex: 1,
@@ -277,40 +266,36 @@ const attrStyles = StyleSheet.create({
   },
   keyInput: {
     flex: 2,
-    fontSize: 13,
-    paddingVertical: 11,
+    fontSize: 12,
+    paddingVertical: 9,
   },
-  separator: {
-    fontSize: 16,
-    color: COLORS.inactiveText,
-    fontWeight: "700",
+  separatorDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.mutedText,
   },
   valueInput: {
     flex: 3,
-    fontSize: 13,
-    paddingVertical: 11,
+    fontSize: 12,
+    paddingVertical: 9,
   },
   removeBtn: {
-    width: 28,
-    height: 28,
+    width: 26,
+    height: 26,
     borderRadius: 8,
-    backgroundColor: "#EF4444",
+    backgroundColor: "#FEF2F2",
     alignItems: "center",
     justifyContent: "center",
   },
   emptyState: {
-    paddingVertical: 14,
+    paddingVertical: 10,
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderStyle: "dashed",
+    marginBottom: 8,
   },
   emptyText: {
-    fontSize: 12,
-    color: "#94A3B8",
+    fontSize: 11,
+    color: COLORS.mutedText,
     fontWeight: "500",
   },
   addBtn: {
@@ -318,46 +303,21 @@ const attrStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-    borderStyle: "dashed",
-    backgroundColor: "#EEF1FE",
-    marginBottom: 10,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: COLORS.primaryLight,
   },
   addBtnText: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.primary,
     fontWeight: "700",
   },
-  previewBox: {
-    backgroundColor: "#0F172A",
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 4,
-  },
-  previewLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#64748B",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 8,
-  },
-  previewText: {
-    fontSize: 12,
-    color: "#7DD3FC",
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
-    lineHeight: 18,
-  },
 });
-
 
 function validate(form: PropertyForm, propertyImages: string[]): string | null {
   for (const key of REQUIRED_FIELDS) {
     const val = form[key] as any;
-    if (!val || (typeof val === 'string' && val.trim() === "")) {
+    if (!val || (typeof val === "string" && val.trim() === "")) {
       return `${key.replace(/_/g, " ")} is required`;
     }
   }
@@ -376,7 +336,7 @@ function buildFormData(form: PropertyForm, propertyImages: string[]): FormData {
     }
   });
 
-  const newImages = propertyImages.filter(uri => !uri.startsWith('/'));
+  const newImages = propertyImages.filter((uri) => !uri.startsWith("/"));
   newImages.forEach((uri, index) => {
     const filename = uri.split("/").pop() ?? `property_${index}.jpg`;
     const ext = filename.split(".").pop()?.toLowerCase() ?? "jpg";
@@ -391,16 +351,43 @@ function buildFormData(form: PropertyForm, propertyImages: string[]): FormData {
   return data;
 }
 
-
-
 const INDIA_STATES = [
-  "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam",
-  "Bihar", "Chandigarh", "Chhattisgarh", "Dadra and Nagar Haveli and Daman and Diu",
-  "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir",
-  "Jharkhand", "Karnataka", "Kerala", "Ladakh", "Lakshadweep", "Madhya Pradesh",
-  "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha",
-  "Puducherry", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana",
-  "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"
+  "Andaman and Nicobar Islands",
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chandigarh",
+  "Chhattisgarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jammu and Kashmir",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Ladakh",
+  "Lakshadweep",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Puducherry",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
 ];
 
 async function getCurrentLocation(): Promise<{
@@ -410,7 +397,11 @@ async function getCurrentLocation(): Promise<{
 } | null> {
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== "granted") {
-    return { lat: "", lng: "", error: "Allow location access to auto-fill coordinates." };
+    return {
+      lat: "",
+      lng: "",
+      error: "Allow location access to auto-fill coordinates.",
+    };
   }
   const location = await Location.getCurrentPositionAsync({
     accuracy: Location.Accuracy.High,
@@ -446,7 +437,6 @@ function CategoryDropdown({
         <Text style={styles.label}>{label}</Text>
       </View>
 
-      {/* Trigger */}
       <TouchableOpacity
         style={[styles.input, styles.dropdownTrigger]}
         onPress={() => setOpen(true)}
@@ -473,11 +463,10 @@ function CategoryDropdown({
         <Text style={styles.dropdownChevron}>{open ? "▲" : "▼"}</Text>
       </TouchableOpacity>
 
-      {/* Modal Sheet */}
       <Modal
         visible={open}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setOpen(false)}
       >
         <TouchableOpacity
@@ -540,25 +529,38 @@ interface SearchableStateDropdownProps {
   onChange: (val: string) => void;
 }
 
-function SearchableStateDropdown({ value, onChange }: SearchableStateDropdownProps) {
+function SearchableStateDropdown({
+  value,
+  onChange,
+}: SearchableStateDropdownProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-  const filteredStates = INDIA_STATES.filter(s => s.toLowerCase().includes(search.toLowerCase()));
+  const filteredStates = INDIA_STATES.filter((s) =>
+    s.toLowerCase().includes(search.toLowerCase()),
+  );
 
   return (
-    <View style={styles.fieldWrapper}>
+    <View style={styles.fieldWrapperHalf}>
       <View style={styles.labelRow}>
         <Text style={styles.label}>State</Text>
       </View>
 
       <TouchableOpacity
         style={[styles.input, styles.dropdownTrigger]}
-        onPress={() => { setOpen(true); setSearch(""); }}
+        onPress={() => {
+          setOpen(true);
+          setSearch("");
+        }}
         activeOpacity={0.7}
       >
-        <Text style={value ? styles.dropdownSelectedText : styles.dropdownPlaceholder}>
-          {value || "Select a state"}
+        <Text
+          style={
+            value ? styles.dropdownSelectedText : styles.dropdownPlaceholder
+          }
+          numberOfLines={1}
+        >
+          {value || "Select"}
         </Text>
         <Text style={styles.dropdownChevron}>{open ? "▲" : "▼"}</Text>
       </TouchableOpacity>
@@ -566,7 +568,7 @@ function SearchableStateDropdown({ value, onChange }: SearchableStateDropdownPro
       <Modal
         visible={open}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setOpen(false)}
       >
         <TouchableOpacity
@@ -579,7 +581,7 @@ function SearchableStateDropdown({ value, onChange }: SearchableStateDropdownPro
           <Text style={styles.modalTitle}>Select State</Text>
 
           <TextInput
-            style={[styles.input, { marginBottom: 16 }]}
+            style={[styles.input, { marginBottom: 14 }]}
             placeholder="Search state..."
             placeholderTextColor={COLORS.mutedText}
             value={search}
@@ -589,7 +591,7 @@ function SearchableStateDropdown({ value, onChange }: SearchableStateDropdownPro
 
           <FlatList
             data={filteredStates}
-            keyExtractor={item => item}
+            keyExtractor={(item) => item}
             keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => {
               const isSelected = item === value;
@@ -667,35 +669,34 @@ function ImagePickerField({
         <Text style={styles.imageCount}>{images.length} selected</Text>
       </View>
 
-      {images.length > 0 && (
-        <FlatList
-          data={images}
-          horizontal
-          keyExtractor={(uri) => uri}
-          showsHorizontalScrollIndicator={false}
-          style={styles.thumbnailList}
-          renderItem={({ item }) => (
-            <View style={styles.thumbnailWrapper}>
-              <Image source={{ uri: item.startsWith('/') ? `${API_BASE_URL}${item}` : item }} style={styles.thumbnail} />
-              <TouchableOpacity
-                style={styles.removeBtn}
-                onPress={() => remove(item)}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              >
-                <Text style={styles.removeBtnText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        />
-      )}
+      <View style={styles.imageGridWrap}>
+        {images.map((item) => (
+          <View key={item} style={styles.thumbnailWrapper}>
+            <Image
+              source={{
+                uri: item.startsWith("/") ? `${API_BASE_URL}${item}` : item,
+              }}
+              style={styles.thumbnail}
+            />
+            <TouchableOpacity
+              style={styles.removeImgBtn}
+              onPress={() => remove(item)}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <X size={11} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        ))}
 
-      <TouchableOpacity
-        style={styles.pickButton}
-        onPress={pick}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.pickButtonText}>+ Add Photos</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.pickTile}
+          onPress={pick}
+          activeOpacity={0.7}
+        >
+          <Plus size={20} color={COLORS.primary} />
+          <Text style={styles.pickTileText}>Add</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -708,6 +709,7 @@ interface FieldProps {
   numeric?: boolean;
   optional?: boolean;
   multiline?: boolean;
+  half?: boolean;
 }
 
 function Field({
@@ -718,9 +720,10 @@ function Field({
   numeric = false,
   optional = false,
   multiline = false,
+  half = false,
 }: FieldProps) {
   return (
-    <View style={styles.fieldWrapper}>
+    <View style={half ? styles.fieldWrapperHalf : styles.fieldWrapper}>
       <View style={styles.labelRow}>
         <Text style={styles.label}>{label}</Text>
         {optional && <Text style={styles.optionalTag}>optional</Text>}
@@ -741,20 +744,21 @@ function Field({
 
 function Section({
   title,
+  subtitle,
   children,
 }: {
   title: string;
+  subtitle?: string;
   children: React.ReactNode;
 }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.sectionDivider} />
+      {subtitle && <Text style={styles.sectionSubtitle}>{subtitle}</Text>}
       {children}
     </View>
   );
 }
-
 
 interface AmenitiesGridProps {
   selectedAmenities: string;
@@ -763,7 +767,10 @@ interface AmenitiesGridProps {
 
 function AmenitiesGrid({ selectedAmenities, onChange }: AmenitiesGridProps) {
   const selectedList = selectedAmenities
-    ? selectedAmenities.split(",").map((s) => s.trim()).filter(Boolean)
+    ? selectedAmenities
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
     : [];
 
   const toggleAmenity = (label: string) => {
@@ -785,32 +792,22 @@ function AmenitiesGrid({ selectedAmenities, onChange }: AmenitiesGridProps) {
           <TouchableOpacity
             key={amenity.id}
             style={[
-              styles.amenityCard,
-              isSelected && styles.amenityCardSelected,
+              styles.amenityChip,
+              isSelected && styles.amenityChipSelected,
             ]}
             onPress={() => toggleAmenity(amenity.label)}
             activeOpacity={0.7}
           >
-            <View style={styles.amenityIconContainer}>
-              <Icon
-                size={24}
-                color={isSelected ? COLORS.primary : COLORS.inactiveText}
-              />
-            </View>
+            <Icon size={14} color={isSelected ? "#fff" : COLORS.inactiveText} />
             <Text
               style={[
-                styles.amenityLabel,
-                isSelected && styles.amenityLabelSelected,
+                styles.amenityChipLabel,
+                isSelected && styles.amenityChipLabelSelected,
               ]}
-              numberOfLines={2}
+              numberOfLines={1}
             >
               {amenity.label}
             </Text>
-            {isSelected && (
-              <View style={styles.amenityCheck}>
-                <CheckCircle2 size={16} color={COLORS.primary} />
-              </View>
-            )}
           </TouchableOpacity>
         );
       })}
@@ -821,7 +818,9 @@ function AmenitiesGrid({ selectedAmenities, onChange }: AmenitiesGridProps) {
 export default function AddProperty() {
   const router = useRouter();
   const { width: windowWidth } = useWindowDimensions();
-  const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
+  const [editingPropertyId, setEditingPropertyId] = useState<string | null>(
+    null,
+  );
   const [showForm, setShowForm] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [properties, setProperties] = useState<any[]>([]);
@@ -842,7 +841,7 @@ export default function AddProperty() {
           duration: 1000,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     ).start();
   }, [scaleAnim]);
 
@@ -863,10 +862,7 @@ export default function AddProperty() {
 
   const { token } = useAuth();
 
-
   const [locationLoading, setLocationLoading] = useState(false);
-
-
 
   const handleGetLocation = async () => {
     setLocationLoading(true);
@@ -892,17 +888,14 @@ export default function AddProperty() {
     }
   };
 
-
-
   useEffect(() => {
     const fetchProperties = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/api/host/properties`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         });
 
-
-        console.log("the properties are", JSON.stringify(res.data, null, 2))
+        console.log("the properties are", JSON.stringify(res.data, null, 2));
 
         if (res.data && Array.isArray(res.data.properties)) {
           setProperties(res.data.properties);
@@ -917,8 +910,6 @@ export default function AddProperty() {
       fetchProperties();
     }
   }, [token, showForm]);
-
-
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -942,13 +933,8 @@ export default function AddProperty() {
     fetchCategories();
   }, []);
 
-
-
-
   const set = (key: FormKey) => (val: string) =>
     setForm((prev) => ({ ...prev, [key]: val }));
-
-
 
   const handleSubmit = async () => {
     const error = validate(form, propertyImages);
@@ -970,10 +956,18 @@ export default function AddProperty() {
       const formData = buildFormData(form, propertyImages);
 
       if (editingPropertyId) {
-        const originalImages = properties.find(p => p.id === editingPropertyId)?.property_images || [];
-        const keptExistingImages = propertyImages.filter(uri => uri.startsWith('/'));
-        const imagesToDelete = originalImages.filter((uri: string) => !keptExistingImages.includes(uri));
-        imagesToDelete.forEach((img: string) => formData.append("images_to_delete", img));
+        const originalImages =
+          properties.find((p) => p.id === editingPropertyId)?.property_images ||
+          [];
+        const keptExistingImages = propertyImages.filter((uri) =>
+          uri.startsWith("/"),
+        );
+        const imagesToDelete = originalImages.filter(
+          (uri: string) => !keptExistingImages.includes(uri),
+        );
+        imagesToDelete.forEach((img: string) =>
+          formData.append("images_to_delete", img),
+        );
       }
 
       const endpoint = editingPropertyId
@@ -981,23 +975,19 @@ export default function AddProperty() {
         : `${API_BASE_URL}/api/host/properties/create`;
       const method = editingPropertyId ? axios.patch : axios.post;
 
-      const response = await method(
-        endpoint,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
+      const response = await method(endpoint, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
         },
-      );
+      });
 
       console.log("Property Saved:", response.data);
 
       showAlert({
         type: "success",
         title: "Success",
-        message: `Property ${editingPropertyId ? 'updated' : 'created'} successfully!`,
+        message: `Property ${editingPropertyId ? "updated" : "created"} successfully!`,
         primaryLabel: "OK",
         onPrimary: () => {
           setForm(INITIAL_FORM);
@@ -1045,7 +1035,10 @@ export default function AddProperty() {
       showAlert({
         type: "error",
         title: "Error",
-        message: error?.response?.data?.message || error?.message || "Something went wrong.",
+        message:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Something went wrong.",
         primaryLabel: "Retry",
         onPrimary: dismissAlert,
       });
@@ -1062,16 +1055,22 @@ export default function AddProperty() {
           <View style={styles.listHeader}>
             <View>
               <Text style={styles.pageTitle}>My Properties</Text>
-              <Text style={styles.pageSubtitle}>Manage your listed Properties</Text>
+              <Text style={styles.pageSubtitle}>
+                Manage your listed Properties
+              </Text>
             </View>
             <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-              <TouchableOpacity style={styles.addBtn} onPress={() => {
-                setEditingPropertyId(null);
-                setForm(INITIAL_FORM);
-                setPropertyImages([]);
-                setCurrentStep(1);
-                setShowForm(true);
-              }} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={styles.addBtn}
+                onPress={() => {
+                  setEditingPropertyId(null);
+                  setForm(INITIAL_FORM);
+                  setPropertyImages([]);
+                  setCurrentStep(1);
+                  setShowForm(true);
+                }}
+                activeOpacity={0.8}
+              >
                 <Plus size={18} color="#fff" strokeWidth={3} />
                 <Text style={styles.addBtnText}>Add Property</Text>
               </TouchableOpacity>
@@ -1084,7 +1083,9 @@ export default function AddProperty() {
             <View style={styles.emptyState}>
               <Building size={48} color={COLORS.inactiveText} />
               <Text style={styles.emptyStateText}>No properties found</Text>
-              <Text style={styles.emptyStateSubtext}>Add your first property to get started</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Add your first property to get started
+              </Text>
             </View>
           ) : (
             <FlatList
@@ -1104,26 +1105,41 @@ export default function AddProperty() {
                       renderItem={({ item: imgPath }) => (
                         <Image
                           source={{ uri: `${API_BASE_URL}${imgPath}` }}
-                          style={[styles.propertyCardImage, { width: windowWidth - 42 }]}
+                          style={[
+                            styles.propertyCardImage,
+                            { width: windowWidth - 42 },
+                          ]}
                         />
                       )}
                     />
                   ) : (
                     <View style={styles.propertyCardImagePlaceholder}>
-                      <Building size={48} color={COLORS.inactiveText} opacity={0.5} />
+                      <Building
+                        size={48}
+                        color={COLORS.inactiveText}
+                        opacity={0.5}
+                      />
                     </View>
                   )}
                   {item.category?.category_name && (
                     <View style={styles.propertyCategoryBadge}>
-                      <Text style={styles.propertyCategoryText}>{item.category.category_name}</Text>
+                      <Text style={styles.propertyCategoryText}>
+                        {item.category.category_name}
+                      </Text>
                     </View>
                   )}
                   <View style={styles.propertyCardInfo}>
-                    <Text style={styles.propertyCardTitle} numberOfLines={1}>{item.property_name}</Text>
+                    <Text style={styles.propertyCardTitle} numberOfLines={1}>
+                      {item.property_name}
+                    </Text>
                     <View style={styles.propertyCardLocation}>
                       <MapPin size={16} color={COLORS.inactiveText} />
-                      <Text style={styles.propertyCardLocationText} numberOfLines={1}>
-                        {item.address_display || `${item.city || ""}${item.city && item.state ? ", " : ""}${item.state || ""}`}
+                      <Text
+                        style={styles.propertyCardLocationText}
+                        numberOfLines={1}
+                      >
+                        {item.address_display ||
+                          `${item.city || ""}${item.city && item.state ? ", " : ""}${item.state || ""}`}
                       </Text>
                     </View>
 
@@ -1131,7 +1147,9 @@ export default function AddProperty() {
                       <View style={styles.propertyStat}>
                         <Bed size={16} color={COLORS.primary} />
                         <Text style={styles.propertyStatText}>
-                          {item.room_details?.length ? `${item.room_details.length} Room${item.room_details.length > 1 ? 's' : ''}` : 'No Rooms'}
+                          {item.room_details?.length
+                            ? `${item.room_details.length} Room${item.room_details.length > 1 ? "s" : ""}`
+                            : "No Rooms"}
                         </Text>
                       </View>
 
@@ -1152,28 +1170,42 @@ export default function AddProperty() {
                               post_office: item.post_office || "",
                               latitude: item.latitude || "",
                               longitude: item.longitude || "",
-                              amenities: item.amenities ? (Array.isArray(item.amenities) ? item.amenities.join(", ") : item.amenities) : "",
-                              additional_attributes: item.additional_attributes ? (typeof item.additional_attributes === "string" ? item.additional_attributes : JSON.stringify(item.additional_attributes)) : "",
+                              amenities: item.amenities
+                                ? Array.isArray(item.amenities)
+                                  ? item.amenities.join(", ")
+                                  : item.amenities
+                                : "",
+                              additional_attributes: item.additional_attributes
+                                ? typeof item.additional_attributes === "string"
+                                  ? item.additional_attributes
+                                  : JSON.stringify(item.additional_attributes)
+                                : "",
                             });
                             setPropertyImages(item.property_images || []);
                             setCurrentStep(1);
                             setShowForm(true);
                           }}
                         >
-                          <Pencil size={14} color="#fff" />
+                          <Pencil size={14} color="#000000" />
                           <Text style={styles.addRoomBtnOnCardText}>Edit</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                           style={styles.addRoomBtnOnCard}
-                          onPress={() => router.push({ pathname: "/add-rooms", params: { propertyId: item.id } })}
+                          onPress={() =>
+                            router.push({
+                              pathname: "/add-rooms",
+                              params: { propertyId: item.id },
+                            })
+                          }
                         >
-                          <Plus size={14} color="#fff" />
-                          <Text style={styles.addRoomBtnOnCardText}>Add Room</Text>
+                          <Plus size={14} color="#000000" />
+                          <Text style={styles.addRoomBtnOnCardText}>
+                            Add Room
+                          </Text>
                         </TouchableOpacity>
                       </View>
                     </View>
-
                   </View>
                 </View>
               )}
@@ -1193,17 +1225,20 @@ export default function AddProperty() {
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <View style={styles.formHeaderRow}>
-            <TouchableOpacity style={styles.backBtn} onPress={() => setShowForm(false)}>
-              <X size={24} color={COLORS.inactiveText} />
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => setShowForm(false)}
+            >
+              <X size={20} color={COLORS.inactiveText} />
             </TouchableOpacity>
-            <View>
-              <Text style={styles.formHeaderText}>{editingPropertyId ? "Edit Property" : "Create Property"}</Text>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.formHeaderText}>
+                {editingPropertyId ? "Edit Property" : "Create Property"}
+              </Text>
               <Text style={styles.formHeaderSub}>Step {currentStep} of 4</Text>
             </View>
-            <View style={{ width: 24 }} />
           </View>
 
-          {/* Premium Step Indicator */}
           <View style={styles.premiumStepContainer}>
             {[1, 2, 3, 4].map((step) => (
               <View key={step} style={styles.premiumStepWrapper}>
@@ -1225,14 +1260,12 @@ export default function AddProperty() {
             ))}
           </View>
 
-          <ScrollView
-            style={styles.container}
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
+          <View style={styles.content}>
             {currentStep === 1 && (
-              <Section title="1. Property Info">
+              <Section
+                title="1. Property Info"
+                subtitle="Property details to show in listing"
+              >
                 <Field
                   label="Property Name"
                   value={form.property_name}
@@ -1243,7 +1276,9 @@ export default function AddProperty() {
                 <CategoryDropdown
                   categories={categories}
                   value={form.category_id}
-                  onChange={(id) => setForm((prev) => ({ ...prev, category_id: id }))}
+                  onChange={(id) =>
+                    setForm((prev) => ({ ...prev, category_id: id }))
+                  }
                   loading={categoriesLoading}
                 />
 
@@ -1254,46 +1289,70 @@ export default function AddProperty() {
                   optional
                 />
 
-                <AttributeBuilder
-                  value={form.additional_attributes}
-                  onChange={set("additional_attributes")}
-                />
+                <ScrollView
+                  style={styles.attrScroll}
+                  showsVerticalScrollIndicator={false}
+                >
+                  <AttributeBuilder
+                    value={form.additional_attributes}
+                    onChange={set("additional_attributes")}
+                  />
+                </ScrollView>
               </Section>
             )}
 
             {currentStep === 2 && (
-              <Section title="2. Location">
-                <Field
-                  label="Village"
-                  value={form.village}
-                  onChange={set("village")}
-                  optional
-                />
-                <Field
-                  label="District"
-                  value={form.district}
-                  onChange={set("district")}
-                />
+              <Section
+                title="2. Location"
+                subtitle="Tell guests exactly where to find your property."
+              >
+                <View style={styles.row2}>
+                  <Field
+                    label="Village"
+                    value={form.village}
+                    onChange={set("village")}
+                    optional
+                    half
+                  />
+                  <Field
+                    label="District"
+                    value={form.district}
+                    onChange={set("district")}
+                    half
+                  />
+                </View>
 
-                <Field label="City" value={form.city} onChange={set("city")} />
-                <SearchableStateDropdown value={form.state} onChange={set("state")} />
+                <View style={styles.row2}>
+                  <Field
+                    label="City"
+                    value={form.city}
+                    onChange={set("city")}
+                    half
+                  />
+                  <SearchableStateDropdown
+                    value={form.state}
+                    onChange={set("state")}
+                  />
+                </View>
 
-                <Field
-                  label="Pincode"
-                  value={form.pincode}
-                  onChange={set("pincode")}
-                  numeric
-                />
-                <Field
-                  label="Post Office"
-                  value={form.post_office}
-                  onChange={set("post_office")}
-                  optional
-                />
+                <View style={styles.row2}>
+                  <Field
+                    label="Pincode"
+                    value={form.pincode}
+                    onChange={set("pincode")}
+                    numeric
+                    half
+                  />
+                  <Field
+                    label="Post Office"
+                    value={form.post_office}
+                    onChange={set("post_office")}
+                    optional
+                    half
+                  />
+                </View>
 
-                {/* ── Coordinates ── */}
-                <View style={styles.fieldWrapper}>
-                  {/* Label row with GPS button */}
+                <View style={styles.coordCard}>
                   <View style={styles.labelRow}>
                     <Text style={styles.label}>Coordinates</Text>
                     <TouchableOpacity
@@ -1305,19 +1364,19 @@ export default function AddProperty() {
                       disabled={locationLoading}
                       activeOpacity={0.7}
                     >
+                      <MapPin size={12} color="#fff" />
                       <Text style={styles.locationBtnText}>
-                        {locationLoading ? "Fetching..." : "📍 Use Current Location"}
+                        {locationLoading ? "Fetching..." : "Use Current"}
                       </Text>
                     </TouchableOpacity>
                   </View>
 
-                  {/* Side-by-side lat/lng inputs */}
                   <View style={styles.coordRow}>
                     <View style={styles.coordField}>
                       <Text style={styles.coordLabel}>Latitude</Text>
                       <TextInput
                         style={styles.input}
-                        placeholder="e.g. 26.748819"
+                        placeholder="26.748819"
                         placeholderTextColor="#aaa"
                         value={form.latitude}
                         onChangeText={set("latitude")}
@@ -1328,7 +1387,7 @@ export default function AddProperty() {
                       <Text style={styles.coordLabel}>Longitude</Text>
                       <TextInput
                         style={styles.input}
-                        placeholder="e.g. 94.209869"
+                        placeholder="94.209869"
                         placeholderTextColor="#aaa"
                         value={form.longitude}
                         onChangeText={set("longitude")}
@@ -1341,33 +1400,44 @@ export default function AddProperty() {
             )}
 
             {currentStep === 3 && (
-              <Section title="3. Property Amenities">
-                <AmenitiesGrid
-                  selectedAmenities={form.amenities}
-                  onChange={set("amenities")}
-                />
+              <Section
+                title="3. Property Amenities"
+                subtitle="Select the facilities and features your property offers."
+              >
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <AmenitiesGrid
+                    selectedAmenities={form.amenities}
+                    onChange={set("amenities")}
+                  />
+                </ScrollView>
               </Section>
             )}
 
             {currentStep === 4 && (
-              <Section title="Property Images">
-                <ImagePickerField
-                  label="Upload Photos"
-                  images={propertyImages}
-                  onChange={setPropertyImages}
-                  onError={(msg) => showAlert({
-                    type: "warning",
-                    title: "Permission required",
-                    message: msg,
-                    primaryLabel: "OK",
-                    onPrimary: dismissAlert,
-                  })}
-                />
+              <Section
+                title="4. Property Images"
+                subtitle="Upload clear, high-quality photos to attract more bookings."
+              >
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <ImagePickerField
+                    label="Upload Photos"
+                    images={propertyImages}
+                    onChange={setPropertyImages}
+                    onError={(msg) =>
+                      showAlert({
+                        type: "warning",
+                        title: "Permission required",
+                        message: msg,
+                        primaryLabel: "OK",
+                        onPrimary: dismissAlert,
+                      })
+                    }
+                  />
+                </ScrollView>
               </Section>
             )}
-          </ScrollView>
+          </View>
 
-          {/* Pinned Footer */}
           <View style={styles.pinnedFooter}>
             <View style={styles.footerRow}>
               {currentStep > 1 && (
@@ -1389,13 +1459,21 @@ export default function AddProperty() {
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
-                  style={[styles.footerBtn, styles.nextBtn, loading && styles.submitButtonDisabled]}
+                  style={[
+                    styles.footerBtn,
+                    styles.nextBtn,
+                    loading && styles.submitButtonDisabled,
+                  ]}
                   onPress={handleSubmit}
                   disabled={loading}
                   activeOpacity={0.7}
                 >
                   <Text style={styles.nextBtnText}>
-                    {loading ? "Saving..." : editingPropertyId ? "Update" : "Create"}
+                    {loading
+                      ? "Saving..."
+                      : editingPropertyId
+                        ? "Update"
+                        : "Create"}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -1419,14 +1497,19 @@ export default function AddProperty() {
   );
 }
 
-
-
 const styles = StyleSheet.create({
+  sectionSubtitle: {
+    fontSize: 11,
+    color: COLORS.mutedText,
+    fontWeight: "500",
+    marginBottom: 14,
+    lineHeight: 16,
+  },
   // ── Root ──
-  mainContainer: { flex: 1, backgroundColor: "#F8FAFC" },
-  modalBg: { flex: 1, backgroundColor: "#F8FAFC" },
+  mainContainer: { flex: 1, backgroundColor: COLORS.surfaceBg },
+  modalBg: { flex: 1, backgroundColor: COLORS.surfaceBg },
   container: { flex: 1 },
-  content: { padding: 20, paddingBottom: 32 },
+  content: { flex: 1, padding: 16 },
 
   // ── List Page ──
   listContainer: { flex: 1, padding: 20 },
@@ -1437,9 +1520,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   pageTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "800",
-    color: COLORS.primary,
+    color: COLORS.textPrimary,
     letterSpacing: -0.4,
   },
   pageSubtitle: {
@@ -1455,17 +1538,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 14,
-    gap: 7,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 12,
+    gap: 6,
   },
-  addBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  addBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 
   // ── States ──
   loadingText: {
@@ -1481,66 +1559,60 @@ const styles = StyleSheet.create({
     marginTop: 80,
   },
   emptyStateText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700",
-    color: COLORS.inactiveText,
-    marginTop: 18,
+    color: COLORS.textPrimary,
+    marginTop: 16,
   },
   emptyStateSubtext: {
     fontSize: 13,
     color: COLORS.mutedText,
-    marginTop: 6,
+    marginTop: 5,
   },
 
   // ── Property Card ──
   propertyCard: {
     backgroundColor: "#fff",
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: "hidden",
-    marginBottom: 20,
-    borderWidth: 0.5,
+    marginBottom: 16,
+    borderWidth: 1,
     borderColor: COLORS.border,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.07,
-    shadowRadius: 20,
-    elevation: 5,
   },
   propertyCardImage: {
     width: "100%",
-    height: 220,
+    height: 190,
     backgroundColor: COLORS.primaryLight,
   },
   propertyCardImagePlaceholder: {
     width: "100%",
-    height: 220,
+    height: 190,
     backgroundColor: COLORS.primaryLight,
     justifyContent: "center",
     alignItems: "center",
   },
   propertyCategoryBadge: {
     position: "absolute",
-    top: 14,
-    right: 14,
-    backgroundColor: "rgba(15,23,42,0.72)",
-    paddingHorizontal: 13,
-    paddingVertical: 6,
-    borderRadius: 20,
+    top: 12,
+    left: 12,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
   propertyCategoryText: {
-    color: "#fff",
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.7,
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.5,
     textTransform: "uppercase",
   },
-  propertyCardInfo: { padding: 18 },
+  propertyCardInfo: { padding: 16 },
   propertyCardTitle: {
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: "800",
     color: COLORS.textPrimary,
-    marginBottom: 6,
-    letterSpacing: -0.3,
+    marginBottom: 5,
   },
   propertyCardLocation: {
     flexDirection: "row",
@@ -1548,31 +1620,27 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   propertyCardLocationText: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.inactiveText,
     fontWeight: "500",
     flexShrink: 1,
   },
   propertyStatsRow: {
     flexDirection: "row",
-    marginTop: 14,
+    marginTop: 12,
     justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 14,
-    borderTopWidth: 0.5,
+    paddingTop: 12,
+    borderTopWidth: 1,
     borderTopColor: COLORS.border,
   },
   propertyStat: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.primaryLight,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-    gap: 6,
+    gap: 5,
   },
   propertyStatText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
     color: COLORS.primary,
   },
@@ -1580,105 +1648,86 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    borderRadius: 10,
-    gap: 5,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.28,
-    shadowRadius: 6,
-    elevation: 4,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 8,
+    gap: 4,
   },
   editBtnOnCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.activeBg,
-    borderWidth: 0.5,
-    borderColor: COLORS.border,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    borderRadius: 10,
-    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 8,
+    gap: 4,
   },
   addRoomBtnOnCardText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
-    color: "#fff",
+    color: "#000000",
   },
 
   // ── Form Header ──
   formHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 20 : 16,
-    paddingBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === "ios" ? 14 : 12,
+    paddingBottom: 12,
     backgroundColor: "#fff",
-    borderBottomWidth: 0.5,
+    borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 3,
-    zIndex: 10,
   },
   backBtn: {
-    padding: 8,
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: COLORS.activeBg,
-    borderRadius: 12,
+    borderRadius: 10,
   },
   formHeaderText: {
-    fontSize: 17,
-    fontWeight: "700",
+    fontSize: 15,
+    fontWeight: "800",
     color: COLORS.textPrimary,
-    textAlign: "center",
   },
   formHeaderSub: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.mutedText,
-    textAlign: "center",
-    marginTop: 2,
+    marginTop: 1,
     fontWeight: "600",
   },
 
-  // ── Premium Step Bar ──
+  // ── Step Bar ──
   premiumStepContainer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 20,
-    paddingHorizontal: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     backgroundColor: "#fff",
-    borderBottomWidth: 0.5,
+    borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    gap: 0,
   },
   premiumStepWrapper: {
     flexDirection: "row",
     alignItems: "center",
+    flex: 1,
   },
   premiumStepDot: {
-    width: 32,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: COLORS.border,
   },
   premiumStepDotActive: {
     backgroundColor: COLORS.primary,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 2,
   },
   premiumStepLine: {
-    width: 28,
+    flex: 1,
     height: 2,
     backgroundColor: COLORS.border,
-    marginHorizontal: 3,
+    marginHorizontal: 4,
   },
   premiumStepLineActive: {
     backgroundColor: COLORS.primary,
@@ -1686,76 +1735,59 @@ const styles = StyleSheet.create({
 
   // ── Section Card ──
   section: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 22,
-    marginBottom: 16,
-    shadowColor: "#94A3B8",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 2,
+    flex: 1,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800",
-    color: COLORS.primary,
-    marginBottom: 18,
-    letterSpacing: -0.2,
+    color: COLORS.textPrimary,
+    marginBottom: 3,
   },
-  sectionDivider: { display: "none" },
 
   // ── Fields ──
-  fieldWrapper: { marginBottom: 14 },
+  fieldWrapper: { marginBottom: 10 },
+  fieldWrapperHalf: { flex: 1, marginBottom: 10 },
+  row2: { flexDirection: "row", gap: 10 },
   labelRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 7,
+    marginBottom: 6,
   },
   label: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
     color: COLORS.inactiveText,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
   optionalTag: {
-    marginLeft: 7,
-    fontSize: 10,
+    marginLeft: 6,
+    fontSize: 9,
     color: COLORS.mutedText,
     fontWeight: "600",
-    backgroundColor: COLORS.activeBg,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 20,
     textTransform: "uppercase",
-    letterSpacing: 0.3,
   },
   imageCount: {
     marginLeft: "auto",
     fontSize: 11,
     color: COLORS.primary,
     fontWeight: "700",
-    backgroundColor: COLORS.primaryLight,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 20,
   },
   input: {
     backgroundColor: COLORS.activeBg,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
+    borderRadius: 10,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    fontSize: 14,
     color: COLORS.textPrimary,
     fontWeight: "500",
     borderWidth: 1,
     borderColor: "transparent",
   },
   inputMultiline: {
-    height: 88,
+    height: 72,
     textAlignVertical: "top",
-    paddingTop: 12,
+    paddingTop: 10,
   },
 
   // ── Dropdown ──
@@ -1764,18 +1796,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  dropdownSelected: { flexDirection: "row", alignItems: "center", gap: 10 },
+  dropdownSelected: { flexDirection: "row", alignItems: "center", gap: 8 },
   dropdownSelectedText: {
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.primary,
     fontWeight: "600",
   },
-  dropdownPlaceholder: { fontSize: 15, color: COLORS.mutedText },
-  dropdownChevron: { fontSize: 10, color: COLORS.mutedText },
+  dropdownPlaceholder: { fontSize: 14, color: COLORS.mutedText },
+  dropdownChevron: { fontSize: 9, color: COLORS.mutedText },
   dropdownCategoryThumb: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
+    width: 26,
+    height: 26,
+    borderRadius: 7,
     backgroundColor: COLORS.primaryLight,
   },
 
@@ -1783,44 +1815,44 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.45)" },
   modalSheet: {
     backgroundColor: "#fff",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: 20,
-    paddingBottom: 44,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 18,
+    paddingBottom: 36,
   },
   modalHandle: {
-    width: 40,
+    width: 36,
     height: 4,
     backgroundColor: COLORS.border,
     borderRadius: 2,
     alignSelf: "center",
-    marginBottom: 18,
+    marginBottom: 14,
   },
   modalTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "700",
     color: COLORS.textPrimary,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   categoryRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 13,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    marginBottom: 4,
-    gap: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    marginBottom: 3,
+    gap: 10,
   },
   categoryRowSelected: { backgroundColor: COLORS.primaryLight },
   categoryRowThumb: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     backgroundColor: COLORS.primaryLight,
   },
   categoryRowText: { flex: 1 },
   categoryRowName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: COLORS.inactiveText,
   },
@@ -1829,50 +1861,57 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   categoryRowDesc: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.mutedText,
     marginTop: 2,
   },
   categoryRowCheck: {
-    fontSize: 18,
+    fontSize: 16,
     color: COLORS.primary,
     fontWeight: "800",
   },
 
   // ── Image Picker ──
-  thumbnailList: { marginBottom: 12 },
-  thumbnailWrapper: { position: "relative", marginRight: 10 },
+  attrScroll: { maxHeight: 130 },
+  imageGridWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  thumbnailWrapper: { position: "relative" },
   thumbnail: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
+    width: 64,
+    height: 64,
+    borderRadius: 10,
     backgroundColor: COLORS.activeBg,
   },
-  removeBtn: {
+  removeImgBtn: {
     position: "absolute",
-    top: -7,
-    right: -7,
+    top: -5,
+    right: -5,
     backgroundColor: COLORS.danger,
-    borderRadius: 12,
-    width: 24,
-    height: 24,
+    borderRadius: 9,
+    width: 18,
+    height: 18,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "#fff",
   },
-  removeBtnText: { color: "#fff", fontSize: 9, fontWeight: "800" },
-  pickButton: {
+  pickTile: {
+    width: 64,
+    height: 64,
+    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: COLORS.primary,
-    borderRadius: 14,
     borderStyle: "dashed",
-    paddingVertical: 16,
-    alignItems: "center",
     backgroundColor: COLORS.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
   },
-  pickButtonText: {
-    fontSize: 14,
+  pickTileText: {
+    fontSize: 9,
     color: COLORS.primary,
     fontWeight: "700",
   },
@@ -1881,119 +1920,97 @@ const styles = StyleSheet.create({
   amenitiesGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
-    justifyContent: "space-between",
-  },
-  amenityCard: {
-    width: "48%",
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
     gap: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
   },
-  amenityCardSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryLight,
+  amenityChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: COLORS.activeBg,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "transparent",
   },
-  amenityIconContainer: { marginBottom: 2 },
-  amenityLabel: {
+  amenityChipSelected: {
+    backgroundColor: COLORS.primary,
+  },
+  amenityChipLabel: {
     fontSize: 12,
     fontWeight: "600",
     color: COLORS.inactiveText,
-    textAlign: "center",
-    lineHeight: 17,
   },
-  amenityLabelSelected: {
-    color: COLORS.primary,
+  amenityChipLabelSelected: {
+    color: "#fff",
     fontWeight: "700",
   },
-  amenityCheck: { position: "absolute", top: 8, right: 8 },
 
   // ── Coordinates ──
+  coordCard: {
+    backgroundColor: COLORS.primaryLight,
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 2,
+  },
   locationBtn: {
     marginLeft: "auto",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 10,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 3,
+    borderRadius: 8,
   },
   locationBtnDisabled: { backgroundColor: COLORS.mutedText },
-  locationBtnText: { color: "#fff", fontSize: 11, fontWeight: "700" },
-  coordRow: { flexDirection: "row", gap: 12 },
+  locationBtnText: { color: "#fff", fontSize: 10, fontWeight: "700" },
+  coordRow: { flexDirection: "row", gap: 10 },
   coordField: { flex: 1 },
   coordLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: COLORS.mutedText,
-    marginBottom: 6,
+    marginBottom: 5,
     fontWeight: "600",
     textTransform: "uppercase",
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
 
   // ── Pinned Footer ──
   pinnedFooter: {
     backgroundColor: "#fff",
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: Platform.OS === "ios" ? 34 : 20,
-    borderTopWidth: 0.5,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === "ios" ? 28 : 16,
+    borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 10,
   },
   footerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 10,
   },
   footerBtn: {
     flex: 1,
-    paddingVertical: 16,
-    borderRadius: 14,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   prevBtn: {
     backgroundColor: COLORS.activeBg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
   },
   prevBtnText: {
     color: COLORS.inactiveText,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
   },
   nextBtn: {
     backgroundColor: COLORS.primary,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.32,
-    shadowRadius: 10,
-    elevation: 6,
   },
-  nextBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  nextBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
   submitButtonDisabled: {
     backgroundColor: COLORS.mutedText,
-    shadowOpacity: 0,
-    elevation: 0,
   },
 
   // ── Unused but kept for compatibility ──
