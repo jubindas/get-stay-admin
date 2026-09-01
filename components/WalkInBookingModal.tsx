@@ -7,7 +7,10 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
+  Platform,
+  SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -62,6 +65,9 @@ export default function WalkInBookingModal({ visible, onClose, onSuccess }: any)
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
+  const [guestAddress, setGuestAddress] = useState("");
+  const [guestRemarks, setGuestRemarks] = useState("");
+  const [withBreakfast, setWithBreakfast] = useState(false);
   const [checkInDate, setCheckInDate] = useState("");
   const [checkOutDate, setCheckOutDate] = useState("");
   const [showCheckInPicker, setShowCheckInPicker] = useState(false);
@@ -143,6 +149,9 @@ export default function WalkInBookingModal({ visible, onClose, onSuccess }: any)
         guest_name: guestName,
         guest_email: guestEmail || "walkin@noemail.com",
         guest_phone: guestPhone,
+        guest_address: guestAddress,
+        guest_remarks: guestRemarks,
+        with_breakfast: withBreakfast,
         check_in_date: checkIn.toISOString(),
         check_out_date: checkOut.toISOString(),
         rooms: [
@@ -193,6 +202,9 @@ export default function WalkInBookingModal({ visible, onClose, onSuccess }: any)
     setGuestName("");
     setGuestEmail("");
     setGuestPhone("");
+    setGuestAddress("");
+    setGuestRemarks("");
+    setWithBreakfast(false);
     setCheckInDate("");
     setCheckOutDate("");
     setSelectedRoomId("");
@@ -205,6 +217,7 @@ export default function WalkInBookingModal({ visible, onClose, onSuccess }: any)
   return (
     <>
       <Modal visible={visible} animationType="slide" presentationStyle="formSheet" onRequestClose={onClose}>
+        <SafeAreaView style={styles.safeArea}>
         <View style={styles.formHeaderRow}>
           <Text style={styles.formHeaderText}>New Walk-in Booking</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -227,7 +240,7 @@ export default function WalkInBookingModal({ visible, onClose, onSuccess }: any)
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  style={{ marginHorizontal: -16, paddingHorizontal: 16 }}
+                  style={{ marginHorizontal: -12, paddingHorizontal: 12 }}
                 >
                   {properties.map((prop) => (
                     <TouchableOpacity
@@ -287,6 +300,47 @@ export default function WalkInBookingModal({ visible, onClose, onSuccess }: any)
                   onChangeText={setGuestEmail}
                   style={styles.input}
                 />
+              </View>
+              <View style={styles.inputWrapper}>
+                <Text style={styles.inputLabel}>Guest Address</Text>
+                <TextInput
+                  placeholder="Guest Address (Optional)"
+                  value={guestAddress}
+                  onChangeText={setGuestAddress}
+                  style={styles.input}
+                />
+              </View>
+              <View style={styles.inputWrapper}>
+                <Text style={styles.inputLabel}>Guest Remarks</Text>
+                <TextInput
+                  placeholder="Any special remarks (Optional)"
+                  value={guestRemarks}
+                  onChangeText={setGuestRemarks}
+                  style={styles.input}
+                />
+              </View>
+              <View style={styles.inputWrapper}>
+                <Text style={styles.inputLabel}>Breakfast Included?</Text>
+                <View style={styles.radioGroup}>
+                  <TouchableOpacity
+                    style={styles.radioButton}
+                    onPress={() => setWithBreakfast(true)}
+                  >
+                    <View style={[styles.radioCircle, withBreakfast && styles.radioCircleActive]}>
+                      {withBreakfast && <View style={styles.radioInner} />}
+                    </View>
+                    <Text style={styles.radioLabel}>With Breakfast</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.radioButton}
+                    onPress={() => setWithBreakfast(false)}
+                  >
+                    <View style={[styles.radioCircle, !withBreakfast && styles.radioCircleActive]}>
+                      {!withBreakfast && <View style={styles.radioInner} />}
+                    </View>
+                    <Text style={styles.radioLabel}>Without Breakfast</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
 
@@ -452,6 +506,7 @@ export default function WalkInBookingModal({ visible, onClose, onSuccess }: any)
             </TouchableOpacity>
           </ScrollView>
         )}
+        </SafeAreaView>
       </Modal>
 
       <AlertPopUp
@@ -470,6 +525,11 @@ export default function WalkInBookingModal({ visible, onClose, onSuccess }: any)
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+  },
   centerFill: {
     flex: 1,
     justifyContent: "center",
@@ -479,19 +539,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
     backgroundColor: COLORS.background,
   },
-  formHeaderText: { fontSize: 22, fontWeight: "800", color: COLORS.textMain, letterSpacing: -0.5 },
-  closeBtn: { padding: 8, backgroundColor: COLORS.card, borderRadius: 20, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-  content: { padding: 16, paddingBottom: 40 },
+  formHeaderText: { fontSize: 18, fontWeight: "800", color: COLORS.textMain, letterSpacing: -0.5 },
+  closeBtn: { padding: 6, backgroundColor: COLORS.card, borderRadius: 20, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  content: { padding: 12, paddingBottom: 20 },
   card: {
     backgroundColor: COLORS.card,
-    padding: 20,
-    borderRadius: 20,
-    marginBottom: 16,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: COLORS.border,
     shadowColor: "#000",
@@ -501,17 +561,17 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
     color: COLORS.textMain,
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  inputWrapper: { marginBottom: 16 },
+  inputWrapper: { marginBottom: 10 },
   inputLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "600",
     color: COLORS.textSecondary,
-    marginBottom: 8,
+    marginBottom: 4,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -519,10 +579,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 50,
-    fontSize: 15,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 38,
+    fontSize: 13,
     color: COLORS.textMain,
   },
   datePickerBtn: {
@@ -532,18 +592,18 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 50,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 38,
   },
-  datePickerText: { fontSize: 15, color: COLORS.textMain, fontWeight: "500" },
-  row: { flexDirection: "row", gap: 12 },
+  datePickerText: { fontSize: 13, color: COLORS.textMain, fontWeight: "500" },
+  row: { flexDirection: "row", gap: 10 },
   selectablePill: {
     backgroundColor: COLORS.background,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 24,
-    marginRight: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginRight: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -552,7 +612,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primaryMain,
   },
   selectablePillText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
     color: COLORS.textSecondary,
   },
@@ -561,39 +621,39 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
-    borderRadius: 16,
+    padding: 12,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.background,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   roomSelectCardActive: {
     borderColor: COLORS.primaryMain,
     backgroundColor: COLORS.primaryLight,
   },
   roomName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
     color: COLORS.textMain,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   roomNameActive: { color: COLORS.primaryMain },
-  roomPrice: { fontSize: 14, color: COLORS.textSecondary, fontWeight: "500" },
+  roomPrice: { fontSize: 12, color: COLORS.textSecondary, fontWeight: "500" },
   quantitiesContainer: {
-    marginTop: 16,
-    paddingTop: 16,
+    marginTop: 10,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
     borderStyle: "dashed",
   },
   submitButton: {
     backgroundColor: COLORS.primaryMain,
-    height: 56,
-    borderRadius: 16,
+    height: 44,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 8,
     shadowColor: COLORS.primaryMain,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -603,12 +663,46 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: "#FFFFFF",
     fontWeight: "700",
-    fontSize: 16,
+    fontSize: 14,
   },
   emptyTextForm: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.textMuted,
     fontStyle: "italic",
     textAlign: "center",
+  },
+  radioGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    marginTop: 4,
+  },
+  radioButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.textMuted,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  radioCircleActive: {
+    borderColor: COLORS.primaryMain,
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.primaryMain,
+  },
+  radioLabel: {
+    fontSize: 13,
+    color: COLORS.textMain,
+    fontWeight: "500",
   },
 });

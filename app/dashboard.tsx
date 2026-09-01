@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import BookingsChart from "../components/BookingsChart";
 
@@ -51,7 +52,7 @@ export default function ZenDashboard() {
   const [vacancyModalVisible, setVacancyModalVisible] = useState(false);
   const [showBookingForm, setShowBookingForm] = useState(false);
 
-
+  const insets = useSafeAreaInsets();
 
 
   const todayDate = new Date();
@@ -125,7 +126,7 @@ export default function ZenDashboard() {
       <Header />
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollPadding}
+        contentContainerStyle={[styles.scrollPadding, { paddingBottom: insets.bottom + 100 }]}
         style={{
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
@@ -165,7 +166,7 @@ export default function ZenDashboard() {
             value="₹25000"
             color={COLORS.pinkCheckOut}
             bgColor="#FEF2F2"
-            onPress={() => router.push("/manage-rates")}
+            onPress={() => router.push("/revenue")}
           />
         </View>
 
@@ -225,7 +226,7 @@ export default function ZenDashboard() {
 
       {/* Floating Action Button */}
       <TouchableOpacity
-        style={styles.fabWrapper}
+        style={[styles.fabWrapper, { bottom: insets.bottom + 30 }]}
         onPress={() => setShowBookingForm(true)}
         activeOpacity={0.85}
       >

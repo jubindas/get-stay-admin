@@ -41,6 +41,7 @@ import {
   Modal,
   Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -48,6 +49,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -768,9 +770,9 @@ interface AmenitiesGridProps {
 function AmenitiesGrid({ selectedAmenities, onChange }: AmenitiesGridProps) {
   const selectedList = selectedAmenities
     ? selectedAmenities
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
     : [];
 
   const toggleAmenity = (label: string) => {
@@ -818,6 +820,7 @@ function AmenitiesGrid({ selectedAmenities, onChange }: AmenitiesGridProps) {
 export default function AddProperty() {
   const router = useRouter();
   const { width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [editingPropertyId, setEditingPropertyId] = useState<string | null>(
     null,
   );
@@ -1091,7 +1094,7 @@ export default function AddProperty() {
             <FlatList
               data={properties}
               keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.listContent}
+              contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 48) }]}
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => (
                 <View style={styles.propertyCard}>
@@ -1194,7 +1197,7 @@ export default function AddProperty() {
                           style={styles.addRoomBtnOnCard}
                           onPress={() =>
                             router.push({
-                              pathname: "/add-rooms",
+                              pathname: "/add-rooms-temp",
                               params: { propertyId: item.id },
                             })
                           }
@@ -1224,7 +1227,7 @@ export default function AddProperty() {
           style={styles.modalBg}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <View style={styles.formHeaderRow}>
+          <View style={[styles.formHeaderRow, { paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) + 12 : Math.max(insets.top, 14) }]}>
             <TouchableOpacity
               style={styles.backBtn}
               onPress={() => setShowForm(false)}
@@ -1308,10 +1311,9 @@ export default function AddProperty() {
               >
                 <View style={styles.row2}>
                   <Field
-                    label="Village"
-                    value={form.village}
-                    onChange={set("village")}
-                    optional
+                    label="Nearest Town / City"
+                    value={form.city}
+                    onChange={set("city")}
                     half
                   />
                   <Field
@@ -1324,11 +1326,13 @@ export default function AddProperty() {
 
                 <View style={styles.row2}>
                   <Field
-                    label="City"
-                    value={form.city}
-                    onChange={set("city")}
+                    label="Village"
+                    value={form.village}
+                    onChange={set("village")}
+                    optional
                     half
                   />
+
                   <SearchableStateDropdown
                     value={form.state}
                     onChange={set("state")}
@@ -1438,7 +1442,7 @@ export default function AddProperty() {
             )}
           </View>
 
-          <View style={styles.pinnedFooter}>
+          <View style={[styles.pinnedFooter, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             <View style={styles.footerRow}>
               {currentStep > 1 && (
                 <TouchableOpacity
@@ -1984,6 +1988,7 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === "ios" ? 28 : 16,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+    marginBottom: 10,
   },
   footerRow: {
     flexDirection: "row",

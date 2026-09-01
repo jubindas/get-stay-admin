@@ -30,7 +30,7 @@ import {
   Utensils,
   Wifi,
   X,
-  Zap
+  Zap,
 } from "lucide-react-native";
 
 import { useLocalSearchParams } from "expo-router";
@@ -48,7 +48,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
 import Header from "../components/Header";
@@ -87,7 +87,6 @@ const COLORS = {
   success: "#10B981",
   successLight: "#D1FAE5",
 };
-
 
 interface Property {
   id: string;
@@ -133,106 +132,136 @@ const INITIAL_ROOM: RoomEntry = {
   check_out_time: "11:00",
 };
 
-const RoomUnitManager = ({ room, token }: { room: any, token: string | null }) => {
-  
-  const [units, setUnits] = useState([{ room_number: "", floor: "", notes: "", status: "Available", saved: false }]);
-  
-  const [saving, setSaving] = useState(false);
+const BED_TYPE_OPTIONS = ["Single", "Double", "Queen", "King", "Bunk"];
+const TOILET_TYPE_OPTIONS = ["Attached", "Shared", "Western", "Indian"];
 
-  const addUnitField = () => setUnits([...units, { room_number: "", floor: "", notes: "", status: "Available", saved: false }]);
-
-  const updateUnit = (index: number, field: string, value: string) => {
-    const newUnits = [...units];
-    newUnits[index] = { ...newUnits[index], [field]: value };
-    setUnits(newUnits);
-  };
-
-  const removeUnit = (index: number) => {
-    const newUnits = units.filter((_, i) => i !== index);
-    setUnits(newUnits);
-  };
-
-  const saveUnits = async () => {
-    setSaving(true);
-
-    // Filter out already saved units and ones missing room_number
-    const unitsToSave = units.filter(u => !u.saved && u.room_number);
-
-    if (unitsToSave.length === 0) {
-      setSaving(false);
-      return;
-    }
-
-    try {
-      const res = await axios.post(`${API_BASE_URL}/api/host/room-units/room-details/${room.id}/units/bulk`, {
-        units: unitsToSave.map(u => ({
-          room_number: u.room_number,
-          floor: u.floor,
-          notes: u.notes,
-          status: u.status
-        }))
-      }, { headers: { Authorization: `Bearer ${token}` } });
-
-      console.log("Bulk created units:", JSON.stringify(res.data, null, 2));
-
-      setUnits(prev => prev.map(u =>
-        (u.room_number && !u.saved) ? { ...u, saved: true } : u
-      ));
-    } catch (e: any) {
-      console.error("Failed to save units in bulk:", e.response?.data || e.message);
-    } finally {
-      setSaving(false);
-    }
-  };
+function ChipSelector({
+  options,
+  selected,
+  onSelect,
+  label,
+}: {
+  options: string[];
+  selected: string;
+  onSelect: (val: string) => void;
+  label?: string;
+}) {
+  const [open, setOpen] = useState(false);
 
   return (
-    <View style={styles.roomCard}>
-      <View style={styles.roomCardHeader}>
-        <Text style={styles.roomCardTitle}>
-          Assign Units for Room ID: {room.id.split('-')[0]}
+    <>
+      <TouchableOpacity
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderWidth: 1,
+          borderColor: selected ? COLORS.primary : COLORS.border,
+          borderRadius: 14,
+          paddingHorizontal: 16,
+          paddingVertical: 14,
+          backgroundColor: selected ? COLORS.primaryLight : "#F8FAFC",
+        }}
+        onPress={() => setOpen(true)}
+        activeOpacity={0.7}
+      >
+        <Text
+          style={{
+            fontSize: 15,
+            fontWeight: "500",
+            color: selected ? COLORS.primary : COLORS.textLight,
+          }}
+        >
+          {selected || `Select ${label ?? "option"}`}
         </Text>
-      </View>
+        <ChevronDown
+          size={18}
+          color={selected ? COLORS.primary : COLORS.textLight}
+        />
+      </TouchableOpacity>
 
-      {units.map((unit, index) => (
-        <View key={index} style={{ marginBottom: 16, padding: 12, backgroundColor: COLORS.background, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 12 }}>
-            <Text style={{ fontSize: 14, fontWeight: "600", color: COLORS.textActive }}>Unit #{index + 1}</Text>
-            {unit.saved ? (
-              <View style={{ backgroundColor: COLORS.successLight, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
-                <Text style={{ fontSize: 11, color: COLORS.success, fontWeight: "700" }}>SAVED</Text>
+      <Modal
+        visible={open}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setOpen(false)}
+        />
+        <View style={styles.modalSheet}>
+          <View style={styles.modalHandle} />
+          <Text style={styles.modalTitle}>{label ?? "Select"}</Text>
+          <ScrollView
+            contentContainerStyle={{ paddingBottom: 20 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Clear option */}
+            <TouchableOpacity
+              style={[
+                styles.categoryRow,
+                !selected && styles.categoryRowSelected,
+              ]}
+              onPress={() => {
+                onSelect("");
+                setOpen(false);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.categoryRowText}>
+                <Text
+                  style={[
+                    styles.categoryRowName,
+                    !selected && styles.categoryRowNameSelected,
+                  ]}
+                >
+                  None
+                </Text>
               </View>
-            ) : units.length > 1 && (
-              <TouchableOpacity onPress={() => removeUnit(index)}>
-                <Trash2 size={16} color={COLORS.danger} />
-              </TouchableOpacity>
-            )}
-          </View>
+              {!selected && (
+                <Check size={20} color={COLORS.primary} strokeWidth={3} />
+              )}
+            </TouchableOpacity>
 
-          <View style={styles.roomRow}>
-            <View style={styles.roomRowField}>
-              <Field label="Room No." value={unit.room_number} onChange={(val: string) => updateUnit(index, "room_number", val)} placeholder="101" />
-            </View>
-            <View style={styles.roomRowField}>
-              <Field label="Floor" value={unit.floor} onChange={(val: string) => updateUnit(index, "floor", val)} placeholder="1st" optional />
-            </View>
-          </View>
-          <Field label="Notes" value={unit.notes} onChange={(val: string) => updateUnit(index, "notes", val)} placeholder="Near elevator" optional />
+            {options.map((opt) => {
+              const isSelected = selected === opt;
+              return (
+                <TouchableOpacity
+                  key={opt}
+                  style={[
+                    styles.categoryRow,
+                    isSelected && styles.categoryRowSelected,
+                  ]}
+                  onPress={() => {
+                    onSelect(opt);
+                    setOpen(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.categoryRowText}>
+                    <Text
+                      style={[
+                        styles.categoryRowName,
+                        isSelected && styles.categoryRowNameSelected,
+                      ]}
+                    >
+                      {opt}
+                    </Text>
+                  </View>
+                  {isSelected && (
+                    <Check size={20} color={COLORS.primary} strokeWidth={3} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
-      ))}
-
-      <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
-        <TouchableOpacity style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: COLORS.primaryLight, alignItems: "center", justifyContent: "center" }} onPress={addUnitField}>
-          <Text style={{ color: COLORS.primary, fontWeight: "600" }}>+ Add Another</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: COLORS.primary, alignItems: "center", justifyContent: "center", opacity: saving ? 0.7 : 1 }} onPress={saveUnits} disabled={saving}>
-          <Text style={{ color: "#FFF", fontWeight: "600" }}>{saving ? "Saving..." : "Save Units"}</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      </Modal>
+    </>
   );
-};
-
-// ─── UI Components ────────────────────────────────────────────────────────────
+}
 
 function Section({ title, icon: Icon, children }: any) {
   return (
@@ -264,14 +293,23 @@ function Field({
         <Text style={styles.label}>{label}</Text>
         {optional && <Text style={styles.optionalTag}>optional</Text>}
       </View>
-      <View style={[styles.inputContainer, multiline && styles.inputContainerMultiline]}>
+      <View
+        style={[
+          styles.inputContainer,
+          multiline && styles.inputContainerMultiline,
+        ]}
+      >
         {Icon && (
           <View style={styles.inputIcon}>
             <Icon size={18} color={COLORS.textLight} />
           </View>
         )}
         <TextInput
-          style={[styles.input, multiline && styles.inputMultiline, Icon && { paddingLeft: 40 }]}
+          style={[
+            styles.input,
+            multiline && styles.inputMultiline,
+            Icon && { paddingLeft: 40 },
+          ]}
           placeholder={placeholder ?? label}
           placeholderTextColor={COLORS.textLight}
           value={value}
@@ -284,7 +322,6 @@ function Field({
     </View>
   );
 }
-
 
 function ImagePickerField({ label, images, onChange, optional, onError }: any) {
   const pick = async () => {
@@ -302,7 +339,8 @@ function ImagePickerField({ label, images, onChange, optional, onError }: any) {
       onChange([...images, ...result.assets.map((a) => a.uri)]);
     }
   };
-  const remove = (uri: string) => onChange(images.filter((i: string) => i !== uri));
+  const remove = (uri: string) =>
+    onChange(images.filter((i: string) => i !== uri));
 
   return (
     <View style={styles.fieldWrapper}>
@@ -322,14 +360,22 @@ function ImagePickerField({ label, images, onChange, optional, onError }: any) {
           renderItem={({ item }) => (
             <View style={styles.thumbnailWrapper}>
               <Image source={{ uri: item }} style={styles.thumbnail} />
-              <TouchableOpacity style={styles.removeBtn} onPress={() => remove(item)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+              <TouchableOpacity
+                style={styles.removeBtn}
+                onPress={() => remove(item)}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
                 <X size={12} color="#FFF" strokeWidth={3} />
               </TouchableOpacity>
             </View>
           )}
         />
       )}
-      <TouchableOpacity style={styles.pickButton} onPress={pick} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.pickButton}
+        onPress={pick}
+        activeOpacity={0.7}
+      >
         <Plus size={18} color={COLORS.primary} />
         <Text style={styles.pickButtonText}>Add Photos</Text>
       </TouchableOpacity>
@@ -337,7 +383,15 @@ function ImagePickerField({ label, images, onChange, optional, onError }: any) {
   );
 }
 
-function CustomDropdown({ items, value, onChange, loading, label, icon: Icon, placeholder }: any) {
+function CustomDropdown({
+  items,
+  value,
+  onChange,
+  loading,
+  label,
+  icon: Icon,
+  placeholder,
+}: any) {
   const [open, setOpen] = useState(false);
   const selected = items.find((i: any) => i.id === value);
 
@@ -363,7 +417,10 @@ function CustomDropdown({ items, value, onChange, loading, label, icon: Icon, pl
           ) : selected ? (
             <>
               {selected.image_url && (
-                <Image source={{ uri: `${API_BASE_URL}${selected.image_url}` }} style={styles.dropdownCategoryThumb} />
+                <Image
+                  source={{ uri: `${API_BASE_URL}${selected.image_url}` }}
+                  style={styles.dropdownCategoryThumb}
+                />
               )}
               <Text style={styles.dropdownSelectedText}>
                 {selected.category_name || selected.property_name}
@@ -377,28 +434,58 @@ function CustomDropdown({ items, value, onChange, loading, label, icon: Icon, pl
           <ChevronDown size={18} color={COLORS.textLight} />
         </View>
       </TouchableOpacity>
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setOpen(false)} />
+      <Modal
+        visible={open}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setOpen(false)}
+        />
         <View style={styles.modalSheet}>
           <View style={styles.modalHandle} />
           <Text style={styles.modalTitle}>Select {label}</Text>
-          <ScrollView contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={{ paddingBottom: 20 }}
+            showsVerticalScrollIndicator={false}
+          >
             {items.map((item: any) => {
               const isSelected = item.id === value;
               return (
                 <TouchableOpacity
                   key={item.id}
-                  style={[styles.categoryRow, isSelected && styles.categoryRowSelected]}
-                  onPress={() => { onChange(item.id); setOpen(false); }}
+                  style={[
+                    styles.categoryRow,
+                    isSelected && styles.categoryRowSelected,
+                  ]}
+                  onPress={() => {
+                    onChange(item.id);
+                    setOpen(false);
+                  }}
                   activeOpacity={0.7}
                 >
-                  {item.image_url && <Image source={{ uri: `${API_BASE_URL}${item.image_url}` }} style={styles.categoryRowThumb} />}
+                  {item.image_url && (
+                    <Image
+                      source={{ uri: `${API_BASE_URL}${item.image_url}` }}
+                      style={styles.categoryRowThumb}
+                    />
+                  )}
                   <View style={styles.categoryRowText}>
-                    <Text style={[styles.categoryRowName, isSelected && styles.categoryRowNameSelected]}>
+                    <Text
+                      style={[
+                        styles.categoryRowName,
+                        isSelected && styles.categoryRowNameSelected,
+                      ]}
+                    >
                       {item.category_name || item.property_name}
                     </Text>
                   </View>
-                  {isSelected && <Check size={20} color={COLORS.primary} strokeWidth={3} />}
+                  {isSelected && (
+                    <Check size={20} color={COLORS.primary} strokeWidth={3} />
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -408,9 +495,6 @@ function CustomDropdown({ items, value, onChange, loading, label, icon: Icon, pl
     </View>
   );
 }
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
-
 
 const PREDEFINED_AMENITIES = [
   { id: "wifi", label: "Wifi", icon: Wifi },
@@ -435,7 +519,10 @@ interface AmenitiesGridProps {
 
 function AmenitiesGrid({ selectedAmenities, onChange }: AmenitiesGridProps) {
   const selectedList = selectedAmenities
-    ? selectedAmenities.split(",").map((s) => s.trim()).filter(Boolean)
+    ? selectedAmenities
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
     : [];
 
   const toggleAmenity = (label: string) => {
@@ -490,10 +577,308 @@ function AmenitiesGrid({ selectedAmenities, onChange }: AmenitiesGridProps) {
   );
 }
 
-export default function AddRooms() {
+const RoomUnitManager = ({
+  room,
+  token,
+}: {
+  room: any;
+  token: string | null;
+}) => {
+  const [units, setUnits] = useState([
+    {
+      room_number: "",
+      floor: "",
+      notes: "",
+      status: "Available",
+      bed_type: "",
+      toilet_type: "",
+      has_room_heating: false,
+      saved: false,
+    },
+  ]);
 
+  const [saving, setSaving] = useState(false);
+
+  const addUnitField = () =>
+    setUnits([
+      ...units,
+      {
+        room_number: "",
+        floor: "",
+        notes: "",
+        status: "Available",
+        bed_type: "",
+        toilet_type: "",
+        has_room_heating: false,
+        saved: false,
+      },
+    ]);
+
+  const updateUnit = (index: number, field: string, value: any) => {
+    const newUnits = [...units];
+    newUnits[index] = { ...newUnits[index], [field]: value };
+    setUnits(newUnits);
+  };
+
+  const removeUnit = (index: number) => {
+    const newUnits = units.filter((_, i) => i !== index);
+    setUnits(newUnits);
+  };
+
+  const saveUnits = async () => {
+    setSaving(true);
+    const unitsToSave = units.filter((u) => !u.saved && u.room_number);
+
+    if (unitsToSave.length === 0) {
+      setSaving(false);
+      return;
+    }
+
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/api/host/room-units/room-details/${room.id}/units/bulk`,
+        {
+          units: unitsToSave.map((u) => ({
+            room_number: u.room_number,
+            floor: u.floor || undefined,
+            notes: u.notes || undefined,
+            status: u.status,
+            bed_type: u.bed_type || undefined,
+            toilet_type: u.toilet_type || undefined,
+            has_room_heating: u.has_room_heating,
+          })),
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+
+      console.log("Bulk created units:", JSON.stringify(res.data, null, 2));
+
+      setUnits((prev) =>
+        prev.map((u) =>
+          u.room_number && !u.saved ? { ...u, saved: true } : u,
+        ),
+      );
+    } catch (e: any) {
+      console.error("Failed to save units:", e.response?.data || e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <View style={styles.roomCard}>
+      {units.map((unit, index) => (
+        <View
+          key={index}
+          style={{
+            marginBottom: 16,
+            padding: 14,
+            backgroundColor: COLORS.background,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+          }}
+        >
+          {/* Unit header */}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginBottom: 14,
+            }}
+          >
+            {unit.saved ? (
+              <View
+                style={{
+                  backgroundColor: COLORS.successLight,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: COLORS.success,
+                    fontWeight: "700",
+                  }}
+                >
+                  SAVED
+                </Text>
+              </View>
+            ) : (
+              units.length > 1 && (
+                <TouchableOpacity onPress={() => removeUnit(index)}>
+                  <Trash2 size={16} color={COLORS.danger} />
+                </TouchableOpacity>
+              )
+            )}
+          </View>
+
+          {/* Room No. + Floor */}
+          <View style={styles.roomRow}>
+            <View style={styles.roomRowField}>
+              <Field
+                label="Room No."
+                value={unit.room_number}
+                onChange={(val: string) =>
+                  updateUnit(index, "room_number", val)
+                }
+                placeholder="101"
+              />
+            </View>
+            <View style={styles.roomRowField}>
+              <Field
+                label="Floor"
+                value={unit.floor}
+                onChange={(val: string) => updateUnit(index, "floor", val)}
+                placeholder="1st"
+                optional
+              />
+            </View>
+          </View>
+
+          {/* Bed Type */}
+          <View style={styles.fieldWrapper}>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>Bed Type</Text>
+              <Text style={styles.optionalTag}>optional</Text>
+            </View>
+            <ChipSelector
+              options={BED_TYPE_OPTIONS}
+              selected={unit.bed_type}
+              onSelect={(val: string) => updateUnit(index, "bed_type", val)}
+              label="Bed Type"
+            />
+          </View>
+
+          {/* Toilet Type */}
+          <View style={styles.fieldWrapper}>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>Toilet Type</Text>
+              <Text style={styles.optionalTag}>optional</Text>
+            </View>
+            <ChipSelector
+              options={TOILET_TYPE_OPTIONS}
+              selected={unit.toilet_type}
+              onSelect={(val: string) => updateUnit(index, "toilet_type", val)}
+              label="Toilet Type"
+            />
+          </View>
+
+          {/* Room Heating toggle */}
+          <TouchableOpacity
+            onPress={() =>
+              updateUnit(index, "has_room_heating", !unit.has_room_heating)
+            }
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              backgroundColor: unit.has_room_heating
+                ? COLORS.primaryLight
+                : "#F8FAFC",
+              borderWidth: 1.5,
+              borderColor: unit.has_room_heating
+                ? COLORS.primary
+                : COLORS.border,
+              borderRadius: 12,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              marginBottom: 14,
+            }}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "600",
+                color: unit.has_room_heating
+                  ? COLORS.primary
+                  : COLORS.textMuted,
+              }}
+            >
+              Room Heating
+            </Text>
+            <View
+              style={{
+                width: 40,
+                height: 22,
+                borderRadius: 11,
+                backgroundColor: unit.has_room_heating
+                  ? COLORS.primary
+                  : COLORS.border,
+                justifyContent: "center",
+                paddingHorizontal: 3,
+                alignItems: unit.has_room_heating ? "flex-end" : "flex-start",
+              }}
+            >
+              <View
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  backgroundColor: "#FFF",
+                }}
+              />
+            </View>
+          </TouchableOpacity>
+
+          {/* Notes */}
+          <Field
+            label="Notes"
+            value={unit.notes}
+            onChange={(val: string) => updateUnit(index, "notes", val)}
+            placeholder="Near elevator, corner room…"
+            optional
+          />
+        </View>
+      ))}
+
+      <View style={{ flexDirection: "row", gap: 12, marginTop: 4 }}>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            paddingVertical: 13,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: COLORS.primaryLight,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onPress={addUnitField}
+        >
+          <Text style={{ color: COLORS.primary, fontWeight: "600" }}>
+            + Add Another
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            paddingVertical: 13,
+            borderRadius: 12,
+            backgroundColor: COLORS.primary,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: saving ? 0.7 : 1,
+          }}
+          onPress={saveUnits}
+          disabled={saving}
+        >
+          <Text style={{ color: "#FFF", fontWeight: "600" }}>
+            {saving ? "Saving..." : "Save Rooms"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+export default function AddRooms() {
   const { token } = useAuth();
-  const { propertyId: urlPropertyId } = useLocalSearchParams<{ propertyId: string }>();
+  const { propertyId: urlPropertyId } = useLocalSearchParams<{
+    propertyId: string;
+  }>();
 
   const [alert, setAlert] = useState<AlertState>(ALERT_HIDDEN);
   const [createdRooms, setCreatedRooms] = useState<any[]>([]);
@@ -504,11 +889,13 @@ export default function AddRooms() {
   const validateStep = (step: number) => {
     if (step === 1) {
       if (!propertyId) return "Please select a property first.";
-      if (roomImages.length === 0) return "Please provide at least one room image.";
+      if (roomImages.length === 0)
+        return "Please provide at least one room image.";
     }
     if (step === 2) {
       for (const r of rooms) {
-        if (!r.room_category_id) return "Please select a room category for all rooms.";
+        if (!r.room_category_id)
+          return "Please select a room category for all rooms.";
         if (!r.room_capacity) return "Please specify capacity for all rooms.";
       }
     }
@@ -540,7 +927,7 @@ export default function AddRooms() {
     const fetchProperties = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/api/host/properties`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (res.data && Array.isArray(res.data.properties)) {
           setProperties(res.data.properties);
@@ -557,7 +944,9 @@ export default function AddRooms() {
   useEffect(() => {
     const fetchRoomCategories = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/api/public/categories/rooms`);
+        const res = await axios.get(
+          `${API_BASE_URL}/api/public/categories/rooms`,
+        );
         if (res.data && res.data.categories) {
           setRoomCategories(res.data.categories);
         }
@@ -570,11 +959,20 @@ export default function AddRooms() {
     fetchRoomCategories();
   }, []);
 
-  const addRoom = () => setRooms(prev => [...prev, { ...INITIAL_ROOM, id: Date.now().toString() }]);
+  const addRoom = () =>
+    setRooms((prev) => [
+      ...prev,
+      { ...INITIAL_ROOM, id: Date.now().toString() },
+    ]);
+
   const updateRoom = (id: string, field: keyof RoomEntry, value: string) => {
-    setRooms(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+    setRooms((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
+    );
   };
-  const removeRoom = (id: string) => setRooms(prev => prev.filter(r => r.id !== id));
+
+  const removeRoom = (id: string) =>
+    setRooms((prev) => prev.filter((r) => r.id !== id));
 
   const handleSubmit = async () => {
     if (!propertyId) {
@@ -595,23 +993,33 @@ export default function AddRooms() {
         room_description: r.room_description || null,
         bed_count: r.bed_count ? Number(r.bed_count) : null,
         room_capacity: Number(r.room_capacity),
-        extra_bed_capacity: r.extra_bed_capacity ? Number(r.extra_bed_capacity) : null,
+        extra_bed_capacity: r.extra_bed_capacity
+          ? Number(r.extra_bed_capacity)
+          : null,
         base_price: Number(r.base_price),
         extra_bed_price: r.extra_bed_price ? Number(r.extra_bed_price) : null,
-        discount_percentage: r.discount_percentage ? Number(r.discount_percentage) : null,
+        discount_percentage: r.discount_percentage
+          ? Number(r.discount_percentage)
+          : null,
         tax_percentage: 12,
         admin_commission: 10,
         payment_gateway_commission: 5,
         check_in_time: r.check_in_time,
         check_out_time: r.check_out_time,
-        amenities: r.amenities ? r.amenities.split(",").map((a) => a.trim()).filter(Boolean) : [],
+        amenities: r.amenities
+          ? r.amenities
+              .split(",")
+              .map((a) => a.trim())
+              .filter(Boolean)
+          : [],
       }));
 
     if (roomsData.length === 0) {
       showAlert({
         type: "warning",
         title: "Validation Error",
-        message: "Please fill out at least one room (Category, Capacity, Base Price).",
+        message:
+          "Please fill out at least one room (Category, Capacity, Base Price).",
         primaryLabel: "Got it",
         onPrimary: dismissAlert,
       });
@@ -636,7 +1044,11 @@ export default function AddRooms() {
       const filename = uri.split("/").pop() ?? `room_${index}.jpg`;
       const ext = filename.split(".").pop()?.toLowerCase() ?? "jpg";
       const mime = ext === "png" ? "image/png" : "image/jpeg";
-      formData.append("room_images", { uri, name: filename, type: mime } as any);
+      formData.append("room_images", {
+        uri,
+        name: filename,
+        type: mime,
+      } as any);
     });
 
     setLoading(true);
@@ -649,10 +1061,13 @@ export default function AddRooms() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "multipart/form-data",
           },
-        }
+        },
       );
 
-      const returnedRooms = res.data?.data || res.data?.rooms || (Array.isArray(res.data) ? res.data : []);
+      const returnedRooms =
+        res.data?.data ||
+        res.data?.rooms ||
+        (Array.isArray(res.data) ? res.data : []);
       if (returnedRooms && returnedRooms.length > 0) {
         setCreatedRooms(returnedRooms);
         setShowUnitsPhase(true);
@@ -660,21 +1075,26 @@ export default function AddRooms() {
         showAlert({
           type: "success",
           title: "Rooms Added!",
-          message: "Your rooms have been successfully configured and added to the property.",
+          message:
+            "Your rooms have been successfully configured and added to the property.",
           primaryLabel: "Continue",
           onPrimary: () => {
             setRooms([{ ...INITIAL_ROOM }]);
             setRoomImages([]);
             setPropertyId("");
             dismissAlert();
-          }
+          },
         });
       }
     } catch (error: any) {
       showAlert({
         type: "error",
         title: "Error",
-        message: error?.response?.data?.error || error?.response?.data?.message || error?.message || "Failed to add rooms.",
+        message:
+          error?.response?.data?.error ||
+          error?.response?.data?.message ||
+          error?.message ||
+          "Failed to add rooms.",
         primaryLabel: "OK",
         onPrimary: dismissAlert,
       });
@@ -682,9 +1102,6 @@ export default function AddRooms() {
       setLoading(false);
     }
   };
-
-
-
 
   return (
     <KeyboardAvoidingView
@@ -698,19 +1115,18 @@ export default function AddRooms() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.pageTitle}>Add Rooms</Text>
-        <Text style={styles.pageSubtitle}>Expand your property with new room listings.</Text>
-
         {currentStep === 1 && (
           <View>
-            <Section title="Target Property" icon={Building}>
-              {propertiesLoading ? (
-                <Text style={{ color: COLORS.textMuted }}>Loading property info...</Text>
-              ) : (
-                <View style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: '#fff',
+            {propertiesLoading ? (
+              <Text style={{ color: COLORS.textMuted }}>
+                Loading property info...
+              </Text>
+            ) : (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#ffffff",
                   padding: 16,
                   borderRadius: 16,
                   borderWidth: 1,
@@ -720,54 +1136,105 @@ export default function AddRooms() {
                   shadowOpacity: 0.05,
                   shadowRadius: 10,
                   elevation: 3,
-                }}>
-                  {(() => {
-                    const p = properties.find(p => p.id === propertyId);
-                    if (!p) return <Text style={{ color: COLORS.textMuted }}>Unknown Property</Text>;
+                  marginTop: 10,
+                  marginBottom: 10,
+                }}
+              >
+                {(() => {
+                  const p = properties.find((p) => p.id === propertyId);
+                  if (!p)
                     return (
-                      <>
-                        {p.property_images && p.property_images.length > 0 ? (
-                          <Image
-                            source={{ uri: `${API_BASE_URL}${p.property_images[0]}` }}
-                            style={{ width: 54, height: 54, borderRadius: 12, marginRight: 14, backgroundColor: COLORS.primaryLight }}
-                          />
-                        ) : (
-                          <View style={{ width: 54, height: 54, borderRadius: 12, marginRight: 14, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' }}>
-                            <Building size={24} color={COLORS.primary} />
-                          </View>
-                        )}
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.textActive, marginBottom: 2 }}>
-                            {p.property_name}
-                          </Text>
-                          {p.address_display && (
-                            <Text style={{ fontSize: 13, color: COLORS.textMuted }}>
-                              {p.address_display}
-                            </Text>
-                          )}
-                        </View>
-                        <View style={{ backgroundColor: COLORS.successLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
-                          <Text style={{ fontSize: 11, fontWeight: '700', color: COLORS.success }}>SELECTED</Text>
-                        </View>
-                      </>
+                      <Text style={{ color: COLORS.textMuted }}>
+                        Unknown Property
+                      </Text>
                     );
-                  })()}
-                </View>
-              )}
-            </Section>
+                  return (
+                    <>
+                      {p.property_images && p.property_images.length > 0 ? (
+                        <Image
+                          source={{
+                            uri: `${API_BASE_URL}${p.property_images[0]}`,
+                          }}
+                          style={{
+                            width: 54,
+                            height: 54,
+                            borderRadius: 12,
+                            marginRight: 14,
+                            backgroundColor: COLORS.primaryLight,
+                          }}
+                        />
+                      ) : (
+                        <View
+                          style={{
+                            width: 54,
+                            height: 54,
+                            borderRadius: 12,
+                            marginRight: 14,
+                            backgroundColor: COLORS.primaryLight,
+                            justifyContent: "center",
+                            alignItems: "center",
+                          }}
+                        >
+                          <Building size={24} color={COLORS.primary} />
+                        </View>
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            fontWeight: "700",
+                            color: COLORS.textActive,
+                            marginBottom: 2,
+                          }}
+                        >
+                          {p.property_name}
+                        </Text>
+                        {p.address_display && (
+                          <Text
+                            style={{ fontSize: 13, color: COLORS.textMuted }}
+                          >
+                            {p.address_display}
+                          </Text>
+                        )}
+                      </View>
+                      <View
+                        style={{
+                          backgroundColor: COLORS.successLight,
+                          paddingHorizontal: 10,
+                          paddingVertical: 4,
+                          borderRadius: 12,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: "700",
+                            color: COLORS.success,
+                          }}
+                        >
+                          SELECTED
+                        </Text>
+                      </View>
+                    </>
+                  );
+                })()}
+              </View>
+            )}
 
             <Section title="Global Gallery" icon={ImageIcon}>
               <ImagePickerField
                 label="Room Images (Applies to all)"
                 images={roomImages}
                 onChange={setRoomImages}
-                onError={(msg: string) => showAlert({
-                  type: "warning",
-                  title: "Permission required",
-                  message: msg,
-                  primaryLabel: "OK",
-                  onPrimary: dismissAlert,
-                })}
+                onError={(msg: string) =>
+                  showAlert({
+                    type: "warning",
+                    title: "Permission required",
+                    message: msg,
+                    primaryLabel: "OK",
+                    onPrimary: dismissAlert,
+                  })
+                }
               />
             </Section>
           </View>
@@ -783,7 +1250,11 @@ export default function AddRooms() {
                   </View>
                   <Text style={styles.roomCardTitle}>Room Configuration</Text>
                   {rooms.length > 1 && (
-                    <TouchableOpacity style={styles.roomCardRemoveBtn} onPress={() => removeRoom(room.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <TouchableOpacity
+                      style={styles.roomCardRemoveBtn}
+                      onPress={() => removeRoom(room.id)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
                       <Trash2 size={16} color={COLORS.danger} />
                     </TouchableOpacity>
                   )}
@@ -792,9 +1263,11 @@ export default function AddRooms() {
                 <CustomDropdown
                   items={roomCategories}
                   value={room.room_category_id}
-                  onChange={(id: string) => updateRoom(room.id, "room_category_id", id)}
+                  onChange={(id: string) =>
+                    updateRoom(room.id, "room_category_id", id)
+                  }
                   loading={roomCategoriesLoading}
-                  label="Room Category"
+                  label="Room Category or Name"
                   icon={AlignLeft}
                   placeholder="Select category"
                 />
@@ -802,7 +1275,9 @@ export default function AddRooms() {
                 <Field
                   label="Description"
                   value={room.room_description}
-                  onChange={(val: string) => updateRoom(room.id, "room_description", val)}
+                  onChange={(val: string) =>
+                    updateRoom(room.id, "room_description", val)
+                  }
                   optional
                   multiline
                   icon={AlignLeft}
@@ -810,16 +1285,37 @@ export default function AddRooms() {
 
                 <View style={styles.roomRow}>
                   <View style={styles.roomRowField}>
-                    <Field label="Capacity" value={room.room_capacity} onChange={(val: string) => updateRoom(room.id, "room_capacity", val)} numeric icon={Users} />
+                    <Field
+                      label="Capacity"
+                      value={room.room_capacity}
+                      onChange={(val: string) =>
+                        updateRoom(room.id, "room_capacity", val)
+                      }
+                      numeric
+                      icon={Users}
+                    />
                   </View>
                   <View style={styles.roomRowField}>
-                    <Field label="Bed Count" value={room.bed_count} onChange={(val: string) => updateRoom(room.id, "bed_count", val)} numeric optional icon={BedDouble} />
+                    <Field
+                      label="Bed Count"
+                      value={room.bed_count}
+                      onChange={(val: string) =>
+                        updateRoom(room.id, "bed_count", val)
+                      }
+                      numeric
+                      optional
+                      icon={BedDouble}
+                    />
                   </View>
                 </View>
               </View>
             ))}
 
-            <TouchableOpacity style={styles.addRoomBtn} onPress={addRoom} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.addRoomBtn}
+              onPress={addRoom}
+              activeOpacity={0.7}
+            >
               <Plus size={20} color={COLORS.primary} strokeWidth={2.5} />
               <Text style={styles.addRoomBtnText}>Add Another Room</Text>
             </TouchableOpacity>
@@ -839,19 +1335,54 @@ export default function AddRooms() {
 
                 <View style={styles.roomRow}>
                   <View style={styles.roomRowField}>
-                    <Field label="Base Price" value={room.base_price} onChange={(val: string) => updateRoom(room.id, "base_price", val)} numeric icon={IndianRupee} />
+                    <Field
+                      label="Base Price"
+                      value={room.base_price}
+                      onChange={(val: string) =>
+                        updateRoom(room.id, "base_price", val)
+                      }
+                      numeric
+                      icon={IndianRupee}
+                    />
                   </View>
                   <View style={styles.roomRowField}>
-                    <Field label="Discount %" value={room.discount_percentage} onChange={(val: string) => updateRoom(room.id, "discount_percentage", val)} numeric optional icon={Percent} />
+                    <Field
+                      label="Discount %"
+                      value={room.discount_percentage}
+                      onChange={(val: string) =>
+                        updateRoom(room.id, "discount_percentage", val)
+                      }
+                      numeric
+                      optional
+                      icon={Percent}
+                    />
                   </View>
                 </View>
 
                 <View style={styles.roomRow}>
                   <View style={styles.roomRowField}>
-                    <Field label="Extra Bed Cap." value={room.extra_bed_capacity} onChange={(val: string) => updateRoom(room.id, "extra_bed_capacity", val)} numeric optional icon={Users} />
+                    <Field
+                      label="Extra Bed Cap."
+                      value={room.extra_bed_capacity}
+                      onChange={(val: string) =>
+                        updateRoom(room.id, "extra_bed_capacity", val)
+                      }
+                      numeric
+                      optional
+                      icon={Users}
+                    />
                   </View>
                   <View style={styles.roomRowField}>
-                    <Field label="Extra Bed Price" value={room.extra_bed_price} onChange={(val: string) => updateRoom(room.id, "extra_bed_price", val)} numeric optional icon={IndianRupee} />
+                    <Field
+                      label="Extra Bed Price"
+                      value={room.extra_bed_price}
+                      onChange={(val: string) =>
+                        updateRoom(room.id, "extra_bed_price", val)
+                      }
+                      numeric
+                      optional
+                      icon={IndianRupee}
+                    />
                   </View>
                 </View>
               </View>
@@ -874,37 +1405,107 @@ export default function AddRooms() {
                   <View style={styles.labelRow}>
                     <Text style={styles.label}>Select Amenities</Text>
                   </View>
-                  <AmenitiesGrid
-                    selectedAmenities={room.amenities}
-                    onChange={(val: string) => updateRoom(room.id, "amenities", val)}
-                  />
+                  <View style={amenityChipStyles.grid}>
+                    {PREDEFINED_AMENITIES.map((amenity) => {
+                      const selectedList = room.amenities
+                        ? room.amenities
+                            .split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean)
+                        : [];
+                      const isSelected = selectedList.includes(amenity.label);
+                      const Icon = amenity.icon;
+                      return (
+                        <TouchableOpacity
+                          key={amenity.id}
+                          style={[
+                            amenityChipStyles.chip,
+                            isSelected && amenityChipStyles.chipSelected,
+                          ]}
+                          onPress={() => {
+                            let newList = [...selectedList];
+                            if (newList.includes(amenity.label)) {
+                              newList = newList.filter(
+                                (item) => item !== amenity.label,
+                              );
+                            } else {
+                              newList.push(amenity.label);
+                            }
+                            updateRoom(
+                              room.id,
+                              "amenities",
+                              newList.join(", "),
+                            );
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Icon
+                            size={14}
+                            color={isSelected ? "#fff" : COLORS.textMuted}
+                          />
+                          <Text
+                            style={[
+                              amenityChipStyles.chipLabel,
+                              isSelected && amenityChipStyles.chipLabelSelected,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {amenity.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
                 </View>
 
                 <View style={styles.roomRow}>
                   <View style={styles.roomRowField}>
-                    <Field label="Check-in Time" placeholder="e.g. 14:00" value={room.check_in_time} onChange={(val: string) => updateRoom(room.id, "check_in_time", val)} icon={Clock} />
+                    <Field
+                      label="Check-in Time"
+                      placeholder="e.g. 14:00"
+                      value={room.check_in_time}
+                      onChange={(val: string) =>
+                        updateRoom(room.id, "check_in_time", val)
+                      }
+                      icon={Clock}
+                    />
                   </View>
                   <View style={styles.roomRowField}>
-                    <Field label="Check-out Time" placeholder="e.g. 11:00" value={room.check_out_time} onChange={(val: string) => updateRoom(room.id, "check_out_time", val)} icon={Clock} />
+                    <Field
+                      label="Check-out Time"
+                      placeholder="e.g. 11:00"
+                      value={room.check_out_time}
+                      onChange={(val: string) =>
+                        updateRoom(room.id, "check_out_time", val)
+                      }
+                      icon={Clock}
+                    />
                   </View>
                 </View>
               </View>
             ))}
           </View>
         )}
-
       </ScrollView>
 
       {/* Pinned Footer */}
       <View style={styles.pinnedFooter}>
-        <View style={{ flexDirection: "row", justifyContent: "center", marginBottom: 16, gap: 6 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "center",
+            marginBottom: 16,
+            gap: 6,
+          }}
+        >
           {[1, 2, 3, 4].map((step) => (
             <View
               key={step}
               style={{
                 height: 4,
                 width: currentStep === step ? 24 : 12,
-                backgroundColor: currentStep >= step ? COLORS.primary : COLORS.border,
+                backgroundColor:
+                  currentStep >= step ? COLORS.primary : COLORS.border,
                 borderRadius: 2,
               }}
             />
@@ -915,7 +1516,7 @@ export default function AddRooms() {
           {currentStep > 1 && (
             <TouchableOpacity
               style={[styles.footerBtn, styles.prevBtn]}
-              onPress={() => setCurrentStep(s => s - 1)}
+              onPress={() => setCurrentStep((s) => s - 1)}
               activeOpacity={0.7}
             >
               <Text style={styles.prevBtnText}>Back</Text>
@@ -923,7 +1524,11 @@ export default function AddRooms() {
           )}
 
           <TouchableOpacity
-            style={[styles.footerBtn, styles.nextBtn, loading && styles.submitButtonDisabled]}
+            style={[
+              styles.footerBtn,
+              styles.nextBtn,
+              loading && styles.submitButtonDisabled,
+            ]}
             onPress={() => {
               const error = validateStep(currentStep);
               if (error) {
@@ -937,7 +1542,7 @@ export default function AddRooms() {
                 return;
               }
               if (currentStep < 4) {
-                setCurrentStep(s => s + 1);
+                setCurrentStep((s) => s + 1);
               } else {
                 handleSubmit();
               }
@@ -946,7 +1551,11 @@ export default function AddRooms() {
             activeOpacity={0.8}
           >
             <Text style={styles.nextBtnText}>
-              {loading ? "Submitting..." : currentStep < 4 ? "Next Step" : "Save Rooms"}
+              {loading
+                ? "Submitting..."
+                : currentStep < 4
+                  ? "Next Step"
+                  : "Save Rooms"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -964,12 +1573,20 @@ export default function AddRooms() {
         onDismiss={dismissAlert}
       />
 
-      <Modal visible={showUnitsPhase} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { }}>
+      <Modal
+        visible={showUnitsPhase}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => {}}
+      >
         <View style={styles.mainContainer}>
           <Header />
           <ScrollView contentContainerStyle={styles.content}>
-            <Text style={styles.pageTitle}>Phase 2: Add Room Units</Text>
-            <Text style={styles.pageSubtitle}>Assign physical room numbers for your newly created room categories.</Text>
+            <Text style={styles.pageTitle}>Phase 2: Add Rooms</Text>
+            <Text style={styles.pageSubtitle}>
+              Assign physical room numbers for your newly created room
+              categories.
+            </Text>
 
             {createdRooms.map((room, idx) => (
               <RoomUnitManager key={room.id || idx} room={room} token={token} />
@@ -987,9 +1604,10 @@ export default function AddRooms() {
                 showAlert({
                   type: "success",
                   title: "Setup Complete",
-                  message: "Your rooms and units have been successfully configured.",
+                  message:
+                    "Your rooms and units have been successfully configured.",
                   primaryLabel: "OK",
-                  onPrimary: dismissAlert
+                  onPrimary: dismissAlert,
                 });
               }}
             >
@@ -1002,13 +1620,48 @@ export default function AddRooms() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+const amenityChipStyles = StyleSheet.create({
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  chipSelected: {
+    backgroundColor: COLORS.primary,
+  },
+  chipLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.textMuted,
+  },
+  chipLabelSelected: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+});
 
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: COLORS.background },
+
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: 20, paddingBottom: 60 },
-  pageTitle: { fontSize: 26, fontWeight: "800", color: COLORS.textActive, marginBottom: 4 },
+  pageTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: COLORS.textActive,
+    marginBottom: 4,
+  },
   pageSubtitle: { fontSize: 14, color: COLORS.textMuted, marginBottom: 24 },
 
   section: {
@@ -1024,7 +1677,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  sectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
   sectionIconWrapper: {
     width: 32,
     height: 32,
@@ -1039,8 +1696,26 @@ const styles = StyleSheet.create({
   fieldWrapper: { marginBottom: 18 },
   labelRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
   label: { fontSize: 13, fontWeight: "600", color: COLORS.textActive },
-  optionalTag: { marginLeft: 8, fontSize: 11, color: COLORS.textLight, fontWeight: "500", backgroundColor: "#F1F5F9", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  imageCount: { marginLeft: "auto", fontSize: 11, color: COLORS.primary, fontWeight: "600", backgroundColor: COLORS.primaryLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  optionalTag: {
+    marginLeft: 8,
+    fontSize: 11,
+    color: COLORS.textLight,
+    fontWeight: "500",
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  imageCount: {
+    marginLeft: "auto",
+    fontSize: 11,
+    color: COLORS.primary,
+    fontWeight: "600",
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
 
   inputContainer: { position: "relative", justifyContent: "center" },
   inputContainerMultiline: { height: 100 },
@@ -1070,9 +1745,23 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: "#F8FAFC",
   },
-  dropdownSelectedText: { fontSize: 15, color: COLORS.textActive, fontWeight: "500", marginLeft: 8 },
-  dropdownPlaceholder: { fontSize: 15, color: COLORS.textLight, fontWeight: "500" },
-  dropdownCategoryThumb: { width: 24, height: 24, borderRadius: 6, backgroundColor: "#E2E8F0" },
+  dropdownSelectedText: {
+    fontSize: 15,
+    color: COLORS.textActive,
+    fontWeight: "500",
+    marginLeft: 8,
+  },
+  dropdownPlaceholder: {
+    fontSize: 15,
+    color: COLORS.textLight,
+    fontWeight: "500",
+  },
+  dropdownCategoryThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: "#E2E8F0",
+  },
 
   modalOverlay: { flex: 1, backgroundColor: "rgba(15, 23, 42, 0.4)" },
   modalSheet: {
@@ -1088,8 +1777,20 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 20,
   },
-  modalHandle: { width: 40, height: 5, backgroundColor: "#CBD5E1", borderRadius: 3, alignSelf: "center", marginBottom: 20 },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: COLORS.textActive, marginBottom: 20 },
+  modalHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: "#CBD5E1",
+    borderRadius: 3,
+    alignSelf: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: COLORS.textActive,
+    marginBottom: 20,
+  },
 
   categoryRow: {
     flexDirection: "row",
@@ -1102,10 +1803,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "transparent",
   },
-  categoryRowSelected: { backgroundColor: COLORS.primaryLight, borderColor: "rgba(79, 110, 247, 0.2)" },
-  categoryRowThumb: { width: 40, height: 40, borderRadius: 10, backgroundColor: "#E2E8F0", marginRight: 12 },
+  categoryRowSelected: {
+    backgroundColor: COLORS.primaryLight,
+    borderColor: "rgba(79, 110, 247, 0.2)",
+  },
+  categoryRowThumb: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "#E2E8F0",
+    marginRight: 12,
+  },
   categoryRowText: { flex: 1 },
-  categoryRowName: { fontSize: 15, fontWeight: "600", color: COLORS.textActive },
+  categoryRowName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.textActive,
+  },
   categoryRowNameSelected: { color: COLORS.primary },
 
   timeOption: {
@@ -1117,13 +1831,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  timeOptionSelected: { backgroundColor: COLORS.primaryLight, borderColor: COLORS.primary },
+  timeOptionSelected: {
+    backgroundColor: COLORS.primaryLight,
+    borderColor: COLORS.primary,
+  },
   timeOptionText: { fontSize: 14, fontWeight: "600", color: COLORS.textMuted },
   timeOptionTextSelected: { color: COLORS.primary },
 
   thumbnailList: { marginBottom: 12 },
   thumbnailWrapper: { position: "relative", marginRight: 12 },
-  thumbnail: { width: 80, height: 80, borderRadius: 14, backgroundColor: "#E2E8F0" },
+  thumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: 14,
+    backgroundColor: "#E2E8F0",
+  },
   removeBtn: {
     position: "absolute",
     top: -6,
@@ -1163,7 +1885,13 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   submitButtonDisabled: { backgroundColor: COLORS.textLight, shadowOpacity: 0 },
-  submitText: { color: "#fff", textAlign: "center", fontSize: 16, fontWeight: "700", letterSpacing: 0.5 },
+  submitText: {
+    color: "#fff",
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
 
   roomCard: {
     backgroundColor: COLORS.card,
@@ -1178,7 +1906,11 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 2,
   },
-  roomCardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
+  roomCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
   roomBadge: {
     width: 28,
     height: 28,
@@ -1189,8 +1921,17 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   roomBadgeText: { color: "#FFF", fontSize: 13, fontWeight: "700" },
-  roomCardTitle: { fontSize: 16, fontWeight: "700", color: COLORS.textActive, flex: 1 },
-  roomCardRemoveBtn: { padding: 6, backgroundColor: COLORS.dangerLight, borderRadius: 8 },
+  roomCardTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: COLORS.textActive,
+    flex: 1,
+  },
+  roomCardRemoveBtn: {
+    padding: 6,
+    backgroundColor: COLORS.dangerLight,
+    borderRadius: 8,
+  },
   roomRow: { flexDirection: "row", gap: 14 },
   roomRowField: { flex: 1 },
 
@@ -1209,7 +1950,6 @@ const styles = StyleSheet.create({
   },
   addRoomBtnText: { fontSize: 15, color: COLORS.primary, fontWeight: "700" },
 
-  // ── Amenities ──
   amenitiesGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1251,7 +1991,6 @@ const styles = StyleSheet.create({
   },
   amenityCheck: { position: "absolute", top: 8, right: 8 },
 
-  // ── Pinned Footer ──
   pinnedFooter: {
     backgroundColor: "#fff",
     paddingHorizontal: 20,
@@ -1265,11 +2004,13 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 10,
   },
+
   footerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 12,
   },
+
   footerBtn: {
     flex: 1,
     paddingVertical: 16,
@@ -1296,5 +2037,4 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   nextBtnText: { color: "#FFF", fontSize: 15, fontWeight: "700" },
-
 });

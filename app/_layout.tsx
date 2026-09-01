@@ -1,9 +1,13 @@
 import { AuthProvider, useAuth } from "@/provider/AuthProvider";
+
 import { Stack, useRouter } from "expo-router";
+
 import React, { useEffect } from "react";
 
 function NavigationGuard({ children }: { children: React.ReactNode }) {
+
   const { token, loading } = useAuth();
+
   const router = useRouter();
 
   useEffect(() => {
@@ -50,6 +54,8 @@ export default function RootLayout() {
           <Stack.Screen name="add-property" />
           <Stack.Screen name="my-rooms" />
           <Stack.Screen name="manage-rates" />
+          <Stack.Screen name="add-rooms-temp" />
+          <Stack.Screen name="revenue" />
         </Stack>
       </NavigationGuard>
     </AuthProvider>
