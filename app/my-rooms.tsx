@@ -1,8 +1,12 @@
-import axios from "axios";
 import * as ImagePicker from "expo-image-picker";
+
 import { LinearGradient } from "expo-linear-gradient";
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useState } from "react";
+
+import { useEffect, useState } from "react";
+
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   FlatList,
   Image,
@@ -20,24 +24,24 @@ import {
 } from "react-native";
 
 import AlertPopUp, { AlertType } from "@/components/AlertPopUp";
-import { useAuth } from "@/provider/AuthProvider";
+
 import {
   BedDouble,
   Building2,
   Check,
-  Clock,
   Edit2,
+  Flame,
   Image as ImageIcon,
   IndianRupee,
   Plus,
+  ShowerHead,
   Sparkles,
   Trash2,
   Users,
-  X,
+  X
 } from "lucide-react-native";
-import Header from "../components/Header";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+import Header from "../components/Header";
 
 const COLORS = {
   primary: "#2563EB",
@@ -73,9 +77,31 @@ const ALERT_HIDDEN: AlertState = {
   message: "",
 };
 
-const UnitsManagerModal = ({ room, token, onClose, showAlert }: any) => {
-  const [units, setUnits] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+// ---- Static mock data (no backend calls) ----
+
+const MOCK_UNITS_BY_ROOM: Record<string, any[]> = {
+  room_1: [
+    { id: "unit_1a", room_number: "101", floor: "1st", notes: "Near elevator", status: "Available" },
+    { id: "unit_1b", room_number: "102", floor: "1st", notes: "", status: "Booked" },
+    { id: "unit_1c", room_number: "103", floor: "1st", notes: "Corner room", status: "Available" },
+  ],
+  room_2: [
+    { id: "unit_2a", room_number: "201", floor: "2nd", notes: "", status: "Available" },
+    { id: "unit_2b", room_number: "202", floor: "2nd", notes: "Under maintenance", status: "Booked" },
+  ],
+  room_3: [
+    { id: "unit_3a", room_number: "C1", floor: "Ground", notes: "Best view", status: "Available" },
+  ],
+};
+
+const DEFAULT_UNITS = [
+  { id: "unit_default_1", room_number: "01", floor: "Ground", notes: "", status: "Available" },
+];
+
+const UnitsManagerModal = ({ room, onClose, showAlert }: any) => {
+  const [units, setUnits] = useState<any[]>(
+    MOCK_UNITS_BY_ROOM[room.id] || DEFAULT_UNITS,
+  );
   const [addingUnit, setAddingUnit] = useState(false);
   const [newUnitData, setNewUnitData] = useState({
     room_number: "",
@@ -84,88 +110,29 @@ const UnitsManagerModal = ({ room, token, onClose, showAlert }: any) => {
     status: "Available",
   });
 
-  const handleApiError = (action: string, e: any) => {
-    let msg = e.message;
-    if (e.response) {
-      console.error(
-        `[${action}] Server Error ${e.response.status}:`,
-        JSON.stringify(e.response.data, null, 2),
-      );
-      msg =
-        e.response.data?.error ||
-        e.response.data?.message ||
-        `Server Error ${e.response.status}`;
-    } else if (e.request) {
-      console.error(`[${action}] Network Error (No response):`, e.request);
-      msg = "Network error, could not reach server.";
-    } else {
-      console.error(`[${action}] Request Error:`, e.message);
-    }
-    showAlert({ type: "error", title: `${action} Failed`, message: msg });
+  const handleUpdateUnit = (unitId: string, updatedData: any) => {
+    setUnits(
+      units.map((u) => (u.id === unitId ? { ...u, ...updatedData } : u)),
+    );
+    showAlert({
+      type: "success",
+      title: "Updated",
+      message: "Unit updated successfully.",
+      primaryLabel: "OK",
+    });
   };
 
-  useEffect(() => {
-    fetchUnits();
-  }, [room]);
-
-  const fetchUnits = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get(
-        `${API_BASE_URL}/api/host/room-units/room-details/${room.id}/units`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      setUnits(res.data.data || []);
-    } catch (e: any) {
-      handleApiError("Fetch Units", e);
-    } finally {
-      setLoading(false);
-    }
+  const handleDeleteUnit = (unitId: string) => {
+    setUnits(units.filter((u) => u.id !== unitId));
+    showAlert({
+      type: "success",
+      title: "Deleted",
+      message: "Unit deleted successfully.",
+      primaryLabel: "OK",
+    });
   };
 
-  const handleUpdateUnit = async (unitId: string, updatedData: any) => {
-    try {
-      await axios.patch(
-        `${API_BASE_URL}/api/host/room-units/${unitId}`,
-        updatedData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      setUnits(
-        units.map((u) => (u.id === unitId ? { ...u, ...updatedData } : u)),
-      );
-      showAlert({
-        type: "success",
-        title: "Updated",
-        message: "Unit updated successfully.",
-        primaryLabel: "OK",
-      });
-    } catch (e: any) {
-      handleApiError("Update Unit", e);
-    }
-  };
-
-  const handleDeleteUnit = async (unitId: string) => {
-    try {
-      await axios.delete(`${API_BASE_URL}/api/host/room-units/${unitId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setUnits(units.filter((u) => u.id !== unitId));
-      showAlert({
-        type: "success",
-        title: "Deleted",
-        message: "Unit deleted successfully.",
-        primaryLabel: "OK",
-      });
-    } catch (e: any) {
-      handleApiError("Delete Unit", e);
-    }
-  };
-
-  const handleAddUnit = async () => {
+  const handleAddUnit = () => {
     if (!newUnitData.room_number) {
       showAlert({
         type: "warning",
@@ -174,31 +141,24 @@ const UnitsManagerModal = ({ room, token, onClose, showAlert }: any) => {
       });
       return;
     }
-    try {
-      const res = await axios.post(
-        `${API_BASE_URL}/api/host/room-units/room-details/${room.id}/units`,
-        newUnitData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      setUnits([...units, res.data.data]);
-      setAddingUnit(false);
-      setNewUnitData({
-        room_number: "",
-        floor: "",
-        notes: "",
-        status: "Available",
-      });
-      showAlert({
-        type: "success",
-        title: "Created",
-        message: "New unit added.",
-        primaryLabel: "OK",
-      });
-    } catch (e: any) {
-      handleApiError("Create Unit", e);
-    }
+    const createdUnit = {
+      id: `unit_${Date.now()}`,
+      ...newUnitData,
+    };
+    setUnits([...units, createdUnit]);
+    setAddingUnit(false);
+    setNewUnitData({
+      room_number: "",
+      floor: "",
+      notes: "",
+      status: "Available",
+    });
+    showAlert({
+      type: "success",
+      title: "Created",
+      message: "New unit added.",
+      primaryLabel: "OK",
+    });
   };
 
   return (
@@ -254,11 +214,7 @@ const UnitsManagerModal = ({ room, token, onClose, showAlert }: any) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {loading ? (
-            <View style={{ padding: 40, alignItems: "center" }}>
-              <Text style={{ color: COLORS.textMuted }}>Loading units...</Text>
-            </View>
-          ) : units.length === 0 ? (
+          {units.length === 0 ? (
             <View
               style={{
                 padding: 40,
@@ -704,7 +660,6 @@ const UnitRow = ({ unit, onUpdate, onDelete, showAlert }: any) => {
 };
 
 export default function MyRooms() {
-  const { token } = useAuth();
   const { width: windowWidth } = useWindowDimensions();
 
   const [properties, setProperties] = useState<any[]>([]);
@@ -718,6 +673,13 @@ export default function MyRooms() {
   // Modal State
   const [editingRoom, setEditingRoom] = useState<any>(null);
   const [managingUnitsForRoom, setManagingUnitsForRoom] = useState<any>(null);
+
+  const [blockingRoomFor, setBlockingRoomFor] = useState<any>(null);
+  const [blockStartDate, setBlockStartDate] = useState(new Date());
+  const [blockEndDate, setBlockEndDate] = useState(new Date());
+  const [showBlockStartPicker, setShowBlockStartPicker] = useState(false);
+  const [showBlockEndPicker, setShowBlockEndPicker] = useState(false);
+
   const [editLoading, setEditLoading] = useState(false);
   const [alert, setAlert] = useState<AlertState>(ALERT_HIDDEN);
   const [newImages, setNewImages] = useState<string[]>([]);
@@ -727,41 +689,92 @@ export default function MyRooms() {
   const showAlert = (config: Omit<AlertState, "visible">) =>
     setAlert({ ...config, visible: true });
 
-  const fetchProperties = async () => {
-    try {
-      const [res, localRoomsStr] = await Promise.all([
-        axios.get(`${API_BASE_URL}/api/host/properties`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        AsyncStorage.getItem("local_rooms")
-      ]);
+  const MOCK_STATIC_PROPERTIES = [
+    {
+      id: "static_prop_1",
+      property_name: "Ocean View Resort",
+      room_details: [
+        {
+          id: "room_1",
+          is_local: false,
+          room_category: { category_name: "Deluxe Suite" },
+          base_price: "4500",
+          room_capacity: 4,
+          bed_count: 2,
+          check_in_time: "14:00",
+          check_out_time: "11:00",
+          amenities: ["Wi-Fi", "AC", "Sea View", "Mini Bar"],
+          room_images_url: [
+            "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800",
+            "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800",
+          ],
+        },
+        {
+          id: "room_2",
+          is_local: false,
+          room_category: { category_name: "Standard Room" },
+          base_price: "2500",
+          room_capacity: 2,
+          bed_count: 1,
+          check_in_time: "14:00",
+          check_out_time: "11:00",
+          amenities: ["Wi-Fi", "AC"],
+          room_images_url: [
+            "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800",
+          ],
+        }
+      ]
+    },
+    {
+      id: "static_prop_2",
+      property_name: "Mountain Retreat",
+      room_details: [
+        {
+          id: "room_3",
+          is_local: false,
+          room_category: { category_name: "Cabin" },
+          base_price: "3500",
+          room_capacity: 3,
+          bed_count: 2,
+          check_in_time: "15:00",
+          check_out_time: "10:00",
+          amenities: ["Fireplace", "Mountain View"],
+          room_images_url: [
+            "https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?w=800",
+          ],
+        }
+      ]
+    }
+  ];
 
-      let localDrafts = [];
+  const fetchProperties = async () => {
+    setLoading(true);
+    try {
+      const localRoomsStr = await AsyncStorage.getItem("local_rooms");
+
+      let localDrafts: any[] = [];
       if (localRoomsStr) {
         try {
           localDrafts = JSON.parse(localRoomsStr);
           setLocalRooms(localDrafts);
-        } catch(e){}
+        } catch (e) { }
       }
 
-      if (res.data && Array.isArray(res.data.properties)) {
-        setProperties(res.data.properties);
-        if (res.data.properties.length > 0 && !selectedPropertyId) {
-          setSelectedPropertyId(res.data.properties[0].id);
-        } else if (localDrafts.length > 0 && !selectedPropertyId) {
-          setSelectedPropertyId("local_drafts");
-        }
+      setProperties(MOCK_STATIC_PROPERTIES);
+
+      if (MOCK_STATIC_PROPERTIES.length > 0 && !selectedPropertyId) {
+        setSelectedPropertyId(MOCK_STATIC_PROPERTIES[0].id);
+      } else if (localDrafts.length > 0 && !selectedPropertyId) {
+        setSelectedPropertyId("local_drafts");
       }
-    } catch (e) {
-      console.error("Failed to fetch properties:", e);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (token) fetchProperties();
-  }, [token]);
+    fetchProperties();
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -846,56 +859,46 @@ export default function MyRooms() {
     }
   };
 
-  const handleUpdateRoom = async () => {
+  const handleUpdateRoom = () => {
     if (!editingRoom || !selectedPropertyId) return;
 
-    const formData = new FormData();
-    formData.append("base_price", editingRoom.base_price);
-    formData.append("room_capacity", editingRoom.room_capacity);
-    if (editingRoom.bed_count)
-      formData.append("bed_count", editingRoom.bed_count);
-    if (editingRoom.extra_bed_capacity)
-      formData.append("extra_bed_capacity", editingRoom.extra_bed_capacity);
-    if (editingRoom.extra_bed_price)
-      formData.append("extra_bed_price", editingRoom.extra_bed_price);
-    if (editingRoom.discount_percentage)
-      formData.append("discount_percentage", editingRoom.discount_percentage);
-    if (editingRoom.check_in_time)
-      formData.append("check_in_time", editingRoom.check_in_time);
-    if (editingRoom.check_out_time)
-      formData.append("check_out_time", editingRoom.check_out_time);
-    if (editingRoom.amenitiesStr)
-      formData.append("amenities", editingRoom.amenitiesStr);
-
-    imagesToDelete.forEach((img) => {
-      formData.append("images_to_delete", img);
-    });
-
-    newImages.forEach((uri, index) => {
-      const filename = uri.split("/").pop() ?? `room_${index}.jpg`;
-      const ext = filename.split(".").pop()?.toLowerCase() ?? "jpg";
-      const mime = ext === "png" ? "image/png" : "image/jpeg";
-      formData.append("room_images", {
-        uri,
-        name: filename,
-        type: mime,
-      } as any);
-    });
-
     setEditLoading(true);
-    try {
-      await axios.patch(
-        `${API_BASE_URL}/api/host/properties/${selectedPropertyId}/rooms/${editingRoom.id}`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        },
+
+    const parsedAmenities = editingRoom.amenitiesStr
+      ? editingRoom.amenitiesStr
+        .split(",")
+        .map((a: string) => a.trim())
+        .filter(Boolean)
+      : [];
+
+    const remainingImages = (editingRoom.room_images_url || []).filter(
+      (img: string) => !imagesToDelete.includes(img),
+    );
+
+    const updatedRoom = {
+      ...editingRoom,
+      amenities: parsedAmenities,
+      room_images_url: [...remainingImages, ...newImages],
+    };
+
+    // Simulate a brief save delay so the "Saving..." state is visible,
+    // then commit the change to local static state.
+    setTimeout(() => {
+      setProperties((prev) =>
+        prev.map((p) =>
+          p.id === selectedPropertyId
+            ? {
+              ...p,
+              room_details: p.room_details.map((r: any) =>
+                r.id === editingRoom.id ? { ...r, ...updatedRoom } : r,
+              ),
+            }
+            : p,
+        ),
       );
+
+      setEditLoading(false);
       setEditingRoom(null);
-      await fetchProperties();
       showAlert({
         type: "success",
         title: "Success",
@@ -903,18 +906,7 @@ export default function MyRooms() {
         primaryLabel: "OK",
         onPrimary: dismissAlert,
       });
-    } catch (error: any) {
-      console.error(error.response?.data);
-      showAlert({
-        type: "error",
-        title: "Error",
-        message: error.response?.data?.error || "Failed to update room.",
-        primaryLabel: "OK",
-        onPrimary: dismissAlert,
-      });
-    } finally {
-      setEditLoading(false);
-    }
+    }, 400);
   };
 
   const renderPropertyTab = ({ item }: { item: any }) => {
@@ -952,7 +944,7 @@ export default function MyRooms() {
             keyExtractor={(img, index) => index.toString()}
             renderItem={({ item: imgPath }) => (
               <Image
-                source={{ uri: imgPath.startsWith("file://") || imgPath.startsWith("content://") ? imgPath : `${API_BASE_URL}${imgPath}` }}
+                source={{ uri: imgPath }}
                 style={[styles.roomImage, { width: windowWidth - 40 }]}
               />
             )}
@@ -961,12 +953,12 @@ export default function MyRooms() {
           <View
             style={[styles.roomImagePlaceholder, { width: windowWidth - 40 }]}
           >
-            <ImageIcon size={48} color={COLORS.textLight} opacity={0.5} />
+            <ImageIcon size={28} color={COLORS.textLight} opacity={0.5} />
             <Text
               style={{
                 color: COLORS.textLight,
-                marginTop: 8,
-                fontSize: 13,
+                marginTop: 4,
+                fontSize: 11,
                 fontWeight: "500",
               }}
             >
@@ -982,7 +974,7 @@ export default function MyRooms() {
           <View style={styles.mediaOverlayRow}>
             {item.room_category?.category_name ? (
               <View style={styles.categoryBadge}>
-                <Sparkles size={12} color="#FFF" style={{ marginRight: 4 }} />
+                <Sparkles size={10} color="#FFF" style={{ marginRight: 3 }} />
                 <Text style={styles.categoryBadgeText}>
                   {item.room_category.category_name}
                 </Text>
@@ -997,7 +989,7 @@ export default function MyRooms() {
                 onPress={() => handleEditClick(item)}
                 activeOpacity={0.9}
               >
-                <Edit2 size={16} color={COLORS.primary} />
+                <Edit2 size={13} color={COLORS.primary} />
               </TouchableOpacity>
             )}
           </View>
@@ -1008,7 +1000,7 @@ export default function MyRooms() {
         <View style={styles.priceContainer}>
           <Text style={styles.priceLabel}>Starting from</Text>
           <View style={styles.priceRow}>
-            <IndianRupee size={22} color={COLORS.primary} strokeWidth={2.5} />
+            <IndianRupee size={16} color={COLORS.primary} strokeWidth={2.5} />
             <Text style={styles.priceText}>{item.base_price}</Text>
             <Text style={styles.perNight}> / night</Text>
           </View>
@@ -1019,7 +1011,7 @@ export default function MyRooms() {
         <View style={styles.statsGrid}>
           <View style={styles.statBox}>
             <View style={styles.statIconWrap}>
-              <Users size={16} color={COLORS.primary} />
+              <Users size={13} color={COLORS.primary} />
             </View>
             <View>
               <Text style={styles.statValue}>{item.room_capacity} Guests</Text>
@@ -1028,7 +1020,7 @@ export default function MyRooms() {
           </View>
           <View style={styles.statBox}>
             <View style={styles.statIconWrap}>
-              <BedDouble size={16} color={COLORS.primary} />
+              <BedDouble size={13} color={COLORS.primary} />
             </View>
             <View>
               <Text style={styles.statValue}>
@@ -1039,24 +1031,24 @@ export default function MyRooms() {
           </View>
           <View style={styles.statBox}>
             <View style={styles.statIconWrap}>
-              <Clock size={16} color={COLORS.primary} />
+              <ShowerHead size={13} color={COLORS.primary} />
             </View>
             <View>
               <Text style={styles.statValue}>
-                {item.check_in_time || "14:00"}
+                {item.toilet_type || "Western"}
               </Text>
-              <Text style={styles.statLabel}>Check-in</Text>
+              <Text style={styles.statLabel}>Toilet</Text>
             </View>
           </View>
           <View style={styles.statBox}>
             <View style={styles.statIconWrap}>
-              <Clock size={16} color={COLORS.primary} />
+              <Flame size={13} color={COLORS.primary} />
             </View>
             <View>
               <Text style={styles.statValue}>
-                {item.check_out_time || "11:00"}
+                {item.room_heating ? "Yes" : "No"}
               </Text>
-              <Text style={styles.statLabel}>Check-out</Text>
+              <Text style={styles.statLabel}>Heating</Text>
             </View>
           </View>
         </View>
@@ -1068,9 +1060,9 @@ export default function MyRooms() {
               {item.amenities.map((amenity: string, idx: number) => (
                 <View key={idx} style={styles.amenityPill}>
                   <Check
-                    size={12}
+                    size={10}
                     color={COLORS.primary}
-                    style={{ marginRight: 4 }}
+                    style={{ marginRight: 3 }}
                   />
                   <Text style={styles.amenityText}>{amenity}</Text>
                 </View>
@@ -1080,24 +1072,41 @@ export default function MyRooms() {
         )}
 
         {!item.is_local && (
-          <TouchableOpacity
-            style={{
-              marginTop: 16,
-              paddingVertical: 12,
-              backgroundColor: COLORS.primaryLight,
-              borderRadius: 12,
-              alignItems: "center",
-              borderWidth: 1,
-              borderColor: "rgba(37, 99, 235, 0.2)",
-            }}
-            onPress={() => setManagingUnitsForRoom(item)}
-          >
-            <Text
-              style={{ color: COLORS.primary, fontWeight: "700", fontSize: 14 }}
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                paddingVertical: 9,
+                backgroundColor: COLORS.primaryLight,
+                borderRadius: 10,
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: "rgba(37, 99, 235, 0.2)",
+              }}
+              onPress={() => setManagingUnitsForRoom(item)}
             >
-              Edit Room Numbers
-            </Text>
-          </TouchableOpacity>
+              <Text style={{ color: COLORS.primary, fontWeight: "700", fontSize: 11 }}>
+                Edit Room Numbers
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                paddingVertical: 9,
+                backgroundColor: "#FEF2F2",
+                borderRadius: 10,
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: "#FECACA",
+              }}
+              onPress={() => setBlockingRoomFor(item)}
+            >
+              <Text style={{ color: "#EF4444", fontWeight: "700", fontSize: 11 }}>
+                Block / Unblock
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     </View>
@@ -1108,7 +1117,7 @@ export default function MyRooms() {
       <Header />
 
       <View style={styles.headerArea}>
-        <Text style={styles.pageTitle}>Room Inventory</Text>
+        <Text style={styles.pageTitle}>My Rooms</Text>
         <Text style={styles.pageSubtitle}>
           Manage your premium listings and spaces
         </Text>
@@ -1328,7 +1337,7 @@ export default function MyRooms() {
 
                 <Text style={styles.sectionLabel}>Current Images</Text>
                 {editingRoom.room_images_url &&
-                editingRoom.room_images_url.length > 0 ? (
+                  editingRoom.room_images_url.length > 0 ? (
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -1345,7 +1354,7 @@ export default function MyRooms() {
                             style={{ marginRight: 10 }}
                           >
                             <Image
-                              source={{ uri: `${API_BASE_URL}${img}` }}
+                              source={{ uri: img }}
                               style={{
                                 width: 80,
                                 height: 80,
@@ -1438,28 +1447,106 @@ export default function MyRooms() {
       {managingUnitsForRoom && (
         <UnitsManagerModal
           room={managingUnitsForRoom}
-          token={token}
           onClose={() => setManagingUnitsForRoom(null)}
           showAlert={showAlert}
         />
       )}
+
+      <Modal visible={!!blockingRoomFor} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}>
+          <View style={{ width: "85%", backgroundColor: "#FFF", borderRadius: 16, padding: 20 }}>
+            <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 16, color: "#0F172A" }}>
+              Block / Unblock Dates
+            </Text>
+
+            <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>Start Date</Text>
+            <TouchableOpacity
+              style={{ borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 8, padding: 12, marginBottom: 16 }}
+              onPress={() => setShowBlockStartPicker(true)}
+            >
+              <Text style={{ color: "#0F172A" }}>{blockStartDate.toDateString()}</Text>
+            </TouchableOpacity>
+
+            <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>End Date</Text>
+            <TouchableOpacity
+              style={{ borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 8, padding: 12, marginBottom: 24 }}
+              onPress={() => setShowBlockEndPicker(true)}
+            >
+              <Text style={{ color: "#0F172A" }}>{blockEndDate.toDateString()}</Text>
+            </TouchableOpacity>
+
+            {showBlockStartPicker && (
+              <DateTimePicker
+                value={blockStartDate}
+                mode="date"
+                display="default"
+                onChange={(event, date) => {
+                  setShowBlockStartPicker(false);
+                  if (date) setBlockStartDate(date);
+                }}
+              />
+            )}
+
+            {showBlockEndPicker && (
+              <DateTimePicker
+                value={blockEndDate}
+                mode="date"
+                display="default"
+                minimumDate={blockStartDate}
+                onChange={(event, date) => {
+                  setShowBlockEndPicker(false);
+                  if (date) setBlockEndDate(date);
+                }}
+              />
+            )}
+
+            <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
+              <TouchableOpacity
+                style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: "#FEF2F2", alignItems: "center", borderWidth: 1, borderColor: "#FECACA" }}
+                onPress={() => {
+                  setBlockingRoomFor(null);
+                  showAlert({ type: "success", title: "Dates Blocked", message: "Successfully blocked the selected dates statically." });
+                }}
+              >
+                <Text style={{ fontWeight: "600", color: "#EF4444" }}>Block Dates</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: "#F0FDF4", alignItems: "center", borderWidth: 1, borderColor: "#BBF7D0" }}
+                onPress={() => {
+                  setBlockingRoomFor(null);
+                  showAlert({ type: "success", title: "Dates Unblocked", message: "Successfully unblocked the selected dates statically." });
+                }}
+              >
+                <Text style={{ fontWeight: "600", color: "#16A34A" }}>Unblock Dates</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={{ paddingVertical: 12, borderRadius: 10, backgroundColor: "#F8FAFC", alignItems: "center", marginTop: 8 }}
+              onPress={() => setBlockingRoomFor(null)}
+            >
+              <Text style={{ fontWeight: "600", color: "#64748B" }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: COLORS.background },
-  headerArea: { paddingHorizontal: 20, paddingBottom: 16, paddingTop: 10 },
+  headerArea: { paddingHorizontal: 20, paddingBottom: 10, paddingTop: 6 },
   pageTitle: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "800",
     color: COLORS.textMain,
     letterSpacing: -0.5,
   },
   pageSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.textMuted,
-    marginTop: 4,
+    marginTop: 2,
     fontWeight: "500",
   },
 
@@ -1494,13 +1581,13 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  propertyTabsContainer: { marginBottom: 16 },
+  propertyTabsContainer: { marginBottom: 10 },
   propertyTab: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.card,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
     borderRadius: 100,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -1522,27 +1609,27 @@ const styles = StyleSheet.create({
   propertyTabText: { fontSize: 14, fontWeight: "600", color: COLORS.textMuted },
   propertyTabTextSelected: { color: "#fff" },
 
-  listContainer: { paddingHorizontal: 20, paddingBottom: 40 },
+  listContainer: { paddingHorizontal: 16, paddingBottom: 16 },
   roomCard: {
     backgroundColor: COLORS.card,
-    borderRadius: 24,
-    marginBottom: 24,
+    borderRadius: 18,
+    marginBottom: 14,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.06,
-    shadowRadius: 20,
-    elevation: 8,
+    shadowRadius: 12,
+    elevation: 6,
   },
   cardMediaContainer: {
-    height: 240,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    height: 140,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
     overflow: "hidden",
     backgroundColor: COLORS.border,
   },
-  roomImage: { height: 240 },
+  roomImage: { height: 140 },
   roomImagePlaceholder: {
-    height: 240,
+    height: 140,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: COLORS.primaryLight,
@@ -1552,9 +1639,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 100,
+    height: 60,
     justifyContent: "flex-end",
-    padding: 20,
+    padding: 12,
   },
   mediaOverlayRow: {
     flexDirection: "row",
@@ -1565,24 +1652,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.2)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: 100,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.3)",
   },
   categoryBadgeText: {
     color: "#FFF",
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "700",
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
     textTransform: "uppercase",
   },
   floatingEditBtn: {
     backgroundColor: "#FFF",
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
@@ -1592,37 +1679,37 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
 
-  cardContent: { padding: 20 },
-  priceContainer: { marginBottom: 16 },
+  cardContent: { padding: 12 },
+  priceContainer: { marginBottom: 8 },
   priceLabel: {
-    fontSize: 12,
+    fontSize: 10,
     color: COLORS.textMuted,
     fontWeight: "600",
     textTransform: "uppercase",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   priceRow: { flexDirection: "row", alignItems: "center" },
   priceText: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: "800",
     color: COLORS.textMain,
     marginLeft: 2,
   },
   perNight: {
-    fontSize: 14,
+    fontSize: 12,
     color: COLORS.textMuted,
     fontWeight: "600",
     alignSelf: "flex-end",
-    marginBottom: 6,
+    marginBottom: 3,
   },
 
-  divider: { height: 1, backgroundColor: COLORS.border, marginBottom: 20 },
+  divider: { height: 1, backgroundColor: COLORS.border, marginBottom: 10 },
 
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 16,
-    marginBottom: 24,
+    gap: 8,
+    marginBottom: 10,
   },
   statBox: {
     width: "46%",
@@ -1630,35 +1717,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   statIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 26,
+    height: 26,
+    borderRadius: 8,
     backgroundColor: COLORS.primaryLight,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 10,
+    marginRight: 7,
   },
-  statValue: { fontSize: 14, fontWeight: "700", color: COLORS.textMain },
-  statLabel: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  statValue: { fontSize: 12, fontWeight: "700", color: COLORS.textMain },
+  statLabel: { fontSize: 10, color: COLORS.textMuted, marginTop: 1 },
 
   amenitiesTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "700",
     color: COLORS.textMain,
-    marginBottom: 12,
+    marginBottom: 6,
   },
-  amenitiesContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  amenitiesContainer: { flexDirection: "row", flexWrap: "wrap", gap: 5 },
   amenityPill: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.background,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  amenityText: { fontSize: 13, fontWeight: "600", color: COLORS.textMuted },
+  amenityText: { fontSize: 11, fontWeight: "600", color: COLORS.textMuted },
 
   // Modal styles
   modalHeader: {

@@ -197,7 +197,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
 
- 
+
   const [alert, setAlert] = useState<AlertState>(ALERT_HIDDEN);
 
   const dismissAlert = () => setAlert((a) => ({ ...a, visible: false }));
@@ -502,11 +502,12 @@ export default function LoginScreen() {
   );
 }
 
-// ─── Styles (unchanged from original) ────────────────────────────────────────
+
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG, overflow: "hidden" },
   splashOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: ACCENT,
     zIndex: 9999,
     justifyContent: "center",

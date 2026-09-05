@@ -76,7 +76,7 @@ export default function OccupancyCard() {
   const [selectedMonthIdx, setSelectedMonthIdx] = useState<number>(0);
   const [refreshSeed, setRefreshSeed] = useState<number>(0);
 
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const [fadeAnim] = useState(() => new Animated.Value(1));
   const monthList = useMemo(() => buildMonthList(), []);
   const currentMonthMeta = monthList[selectedMonthIdx];
 

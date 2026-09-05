@@ -3,7 +3,7 @@ import { useAuth } from "@/provider/AuthProvider";
 
 import { Ionicons } from "@expo/vector-icons";
 
-import axios from "axios";
+
 
 import React, { useEffect, useRef, useState } from "react";
 
@@ -22,7 +22,7 @@ import {
 
 import Header from "../components/Header";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+
 
 const COLORS = {
   primary: "#003399",
@@ -139,6 +139,110 @@ function statusColor(status: BookingStatus) {
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
+const MOCK_BOOKINGS_TODAY: Booking[] = [
+  {
+    id: "booking_today_1",
+    booking_reference: "REF-TODAY-001",
+    guest_name: "Sneha Verma",
+    guest_email: "sneha.v@example.com",
+    guest_phone: "+91 9988776655",
+    booking_status: "Pending",
+    payment_status: "Paid",
+    check_in_date: new Date().toISOString(),
+    check_out_date: new Date(Date.now() + 86400000 * 2).toISOString(),
+    grand_total: 15000,
+    amount_paid: 15000,
+    created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+    booking_items: [
+      {
+        id: "bi_1",
+        number_of_rooms: 1,
+        adults: 2,
+        children: 0,
+        extra_beds: 0,
+        base_price_booked: 7500,
+        total_room_amount: 15000,
+        extra_bed_amount: 0,
+        tax_amount: 1000,
+        discount_amount: 500,
+        room: {
+          id: "r1",
+          property_name: "Ocean View Resort",
+          room_capacity: 2,
+          base_price: 7500,
+          amenities: ["Wi-Fi", "Pool", "Breakfast"],
+          check_in_time: "14",
+          check_out_time: "11",
+          total_inventory: 10,
+          room_category: {
+            id: "rc1",
+            category_name: "Deluxe Suite",
+            description: "A beautiful deluxe suite."
+          }
+        }
+      }
+    ]
+  },
+  {
+    id: "booking_today_2",
+    booking_reference: "REF-TODAY-002",
+    guest_name: "Karan Johar",
+    guest_email: "karan.j@example.com",
+    guest_phone: "+91 8877665544",
+    booking_status: "CheckedIn",
+    payment_status: "Pending",
+    check_in_date: new Date().toISOString(),
+    check_out_date: new Date(Date.now() + 86400000 * 1).toISOString(),
+    grand_total: 5000,
+    amount_paid: 1000,
+    created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+    booking_items: [
+      {
+        id: "bi_2",
+        number_of_rooms: 1,
+        adults: 1,
+        children: 0,
+        extra_beds: 0,
+        base_price_booked: 5000,
+        total_room_amount: 5000,
+        extra_bed_amount: 0,
+        tax_amount: 0,
+        discount_amount: 0,
+        room: {
+          id: "r2",
+          property_name: "Mountain Retreat",
+          room_capacity: 2,
+          base_price: 5000,
+          amenities: ["Wi-Fi"],
+          check_in_time: "12",
+          check_out_time: "10",
+          total_inventory: 5,
+          room_category: {
+            id: "rc2",
+            category_name: "Standard Room",
+            description: "Standard room."
+          }
+        }
+      }
+    ]
+  },
+  {
+    id: "booking_past_1",
+    booking_reference: "REF-PAST-001",
+    guest_name: "Anil Kapoor",
+    guest_email: "anil.k@example.com",
+    guest_phone: "+91 7766554433",
+    booking_status: "Cancelled",
+    payment_status: "Refunded",
+    check_in_date: new Date(Date.now() - 86400000 * 3).toISOString(),
+    check_out_date: new Date(Date.now() - 86400000 * 1).toISOString(),
+    grand_total: 8000,
+    amount_paid: 0,
+    created_at: new Date(Date.now() - 86400000 * 10).toISOString(),
+    booking_items: []
+  }
+];
+
 export default function TodaysCheckIn() {
   const { token } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -151,14 +255,14 @@ export default function TodaysCheckIn() {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/host/bookings`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setBookings(response.data?.data ?? []);
+      setTimeout(() => {
+        setBookings(MOCK_BOOKINGS_TODAY);
+        setLoading(false);
+        setRefreshing(false);
+      }, 500);
     } catch (e: any) {
       setError("Could not load bookings. Pull down to retry.");
       console.error("Error fetching bookings:", e);
-    } finally {
       setLoading(false);
       setRefreshing(false);
     }

@@ -1,7 +1,7 @@
 
 import { Ionicons } from "@expo/vector-icons";
 
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Animated,
@@ -107,9 +107,12 @@ export default function ZenDashboard() {
         );
 
 
-        // Safely set the array from response.data.properties
-        if (response.data && Array.isArray(response.data.properties)) {
-          setProperties(response.data.properties);
+        if (response.data) {
+          const propertiesData =
+            response.data.properties ||
+            response.data.data ||
+            (Array.isArray(response.data) ? response.data : []);
+          setProperties(propertiesData);
         }
       } catch (error) {
         console.log("the error is", error);
@@ -128,6 +131,7 @@ export default function ZenDashboard() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollPadding, { paddingBottom: insets.bottom + 100 }]}
         style={{
+          flex: 1,
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
         }}

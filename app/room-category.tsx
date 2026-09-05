@@ -1,5 +1,5 @@
+import { useCallback, useMemo, useRef, useState } from "react";
 import Header from "../components/Header";
-import React, { useMemo, useRef, useState } from "react";
 
 import {
   Animated,
@@ -80,6 +80,33 @@ export default function RoomCategory() {
   const [selectedDay, setSelectedDay] = useState<RoomData | null>(null);
 
   const [selectedMonthIdx, setSelectedMonthIdx] = useState<number>(0);
+
+  // Track blocked rooms: key = "type|year-month-day|roomNumber"
+  const [blockedRooms, setBlockedRooms] = useState<Record<string, boolean>>({});
+
+  const getRoomPrefix = (type: string): number => {
+    if (type === "Double Bed") return 200;
+    if (type === "King Suite") return 300;
+    return 100;
+  };
+
+  const getBlockKey = (type: string, day: RoomData, roomNum: number) =>
+    `${type}|${day.year}-${day.month}-${day.day}|${roomNum}`;
+
+  const toggleBlock = useCallback(
+    (roomNum: number) => {
+      if (!selectedDay) return;
+      const key = getBlockKey(selectedType, selectedDay, roomNum);
+      setBlockedRooms((prev) => ({ ...prev, [key]: !prev[key] }));
+    },
+    [selectedDay, selectedType],
+  );
+
+  const modalRooms = useMemo(() => {
+    if (!selectedDay) return [];
+    const prefix = getRoomPrefix(selectedType);
+    return Array.from({ length: selectedDay.totalRooms }, (_, i) => prefix + i + 1);
+  }, [selectedDay, selectedType]);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
@@ -312,7 +339,7 @@ export default function RoomCategory() {
               style={[
                 styles.navBtn,
                 selectedMonthIdx === monthList.length - 1 &&
-                  styles.navBtnDisabled,
+                styles.navBtnDisabled,
               ]}
               disabled={selectedMonthIdx === monthList.length - 1}
             >
@@ -320,7 +347,7 @@ export default function RoomCategory() {
                 style={[
                   styles.navBtnText,
                   selectedMonthIdx === monthList.length - 1 &&
-                    styles.navBtnTextDisabled,
+                  styles.navBtnTextDisabled,
                 ]}
               >
                 ›
@@ -418,7 +445,7 @@ export default function RoomCategory() {
           style={styles.modalOverlay}
           onPress={() => setSelectedDay(null)}
         >
-          <Pressable style={styles.modalCard} onPress={() => {}}>
+          <Pressable style={styles.modalCard} onPress={() => { }}>
             {selectedDay && (
               <>
                 <Text style={styles.modalTitle}>
@@ -459,7 +486,7 @@ export default function RoomCategory() {
                           selectedDay.availableRooms === 0
                             ? "#EF4444"
                             : selectedDay.availableRooms <
-                                selectedDay.totalRooms * 0.4
+                              selectedDay.totalRooms * 0.4
                               ? "#F97316"
                               : "#22C55E",
                       },
@@ -472,6 +499,53 @@ export default function RoomCategory() {
                   )}
                   % Occupancy
                 </Text>
+
+                {/* ── Room Block / Unblock List ── */}
+                <View style={styles.roomListSection}>
+                  <Text style={styles.roomListTitle}>Rooms</Text>
+                  <Text style={styles.roomListHint}>Tap to block or unblock individual rooms</Text>
+                  <ScrollView
+                    style={styles.roomListScroll}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {modalRooms.map((roomNum) => {
+                      const key = getBlockKey(selectedType, selectedDay, roomNum);
+                      const isBlocked = !!blockedRooms[key];
+                      return (
+                        <View key={roomNum} style={styles.roomRow}>
+                          <View style={styles.roomInfo}>
+                            <View
+                              style={[
+                                styles.roomDot,
+                                { backgroundColor: isBlocked ? "#EF4444" : "#22C55E" },
+                              ]}
+                            />
+                            <Text style={styles.roomNumber}>Room {roomNum}</Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => toggleBlock(roomNum)}
+                            style={[
+                              styles.blockBtn,
+                              isBlocked ? styles.unblockBtn : styles.blockBtnDefault,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.blockBtnText,
+                                isBlocked
+                                  ? styles.unblockBtnText
+                                  : styles.blockBtnTextDefault,
+                              ]}
+                            >
+                              {isBlocked ? "Unblock" : "Block"}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
 
                 <TouchableOpacity
                   style={styles.modalClose}
@@ -650,6 +724,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 28,
     width: "100%",
+    maxHeight: "85%",
     elevation: 12,
     shadowColor: "#000",
     shadowOpacity: 0.2,
@@ -705,4 +780,78 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalCloseText: { color: "#FFF", fontWeight: "700", fontSize: 15 },
+
+  // Room list styles
+  roomListSection: {
+    marginTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+    paddingTop: 16,
+  },
+  roomListTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginBottom: 2,
+  },
+  roomListHint: {
+    fontSize: 11,
+    color: "#94A3B8",
+    marginBottom: 12,
+    fontWeight: "500",
+  },
+  roomListScroll: {
+    maxHeight: 220,
+  },
+  roomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+  },
+  roomInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  roomDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  roomNumber: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#334155",
+  },
+  blockBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1.5,
+  },
+  blockBtnDefault: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+  },
+  unblockBtn: {
+    backgroundColor: "#F0FDF4",
+    borderColor: "#BBF7D0",
+  },
+  blockBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  blockBtnTextDefault: {
+    color: "#DC2626",
+  },
+  unblockBtnText: {
+    color: "#16A34A",
+  },
 });

@@ -56,6 +56,8 @@ export default function RootLayout() {
           <Stack.Screen name="manage-rates" />
           <Stack.Screen name="add-rooms-temp" />
           <Stack.Screen name="revenue" />
+          <Stack.Screen name="raise-ticket" />
+          <Stack.Screen name="booking-details" />
         </Stack>
       </NavigationGuard>
     </AuthProvider>

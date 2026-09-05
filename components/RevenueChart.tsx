@@ -25,7 +25,7 @@ const maxBarHeight = 130;
 
 export default function RevenueChart() {
   const [activeTab, setActiveTab] = useState<string>("Day");
-  const animValue = useRef(new Animated.Value(0)).current;
+  const [animValue] = useState(() => new Animated.Value(0));
 
   // Animate heights when tab changes
   useEffect(() => {

@@ -80,16 +80,7 @@ interface AlertState {
   onSecondary?: () => void;
 }
 
-interface KeyValuePair {
-  key: string;
-  value: string;
-  id: string;
-}
 
-interface AttributeBuilderProps {
-  value: string; // JSON string
-  onChange: (val: string) => void;
-}
 
 const ALERT_HIDDEN: AlertState = {
   visible: false,
@@ -118,7 +109,6 @@ interface PropertyForm {
   latitude: string;
   longitude: string;
   amenities: string;
-  additional_attributes: string;
 }
 
 type FormKey = keyof PropertyForm;
@@ -136,7 +126,6 @@ const INITIAL_FORM: PropertyForm = {
   latitude: "",
   longitude: "",
   amenities: "",
-  additional_attributes: "",
 };
 
 const REQUIRED_FIELDS: FormKey[] = [
@@ -150,95 +139,7 @@ const REQUIRED_FIELDS: FormKey[] = [
   "longitude",
 ];
 
-function AttributeBuilder({ value, onChange }: AttributeBuilderProps) {
-  const [pairs, setPairs] = useState<KeyValuePair[]>(() => {
-    try {
-      const parsed = JSON.parse(value || "{}");
-      return Object.entries(parsed).map(([k, v]) => ({
-        key: k,
-        value: String(v),
-        id: Math.random().toString(36).slice(2),
-      }));
-    } catch {
-      return [];
-    }
-  });
 
-  const sync = (updated: KeyValuePair[]) => {
-    setPairs(updated);
-    const obj: Record<string, string> = {};
-    updated.forEach(({ key, value }) => {
-      if (key.trim()) obj[key.trim()] = value;
-    });
-    onChange(Object.keys(obj).length ? JSON.stringify(obj) : "");
-  };
-
-  const addPair = () =>
-    sync([
-      ...pairs,
-      { key: "", value: "", id: Math.random().toString(36).slice(2) },
-    ]);
-
-  const removePair = (id: string) => sync(pairs.filter((p) => p.id !== id));
-
-  const updatePair = (id: string, field: "key" | "value", val: string) =>
-    sync(pairs.map((p) => (p.id === id ? { ...p, [field]: val } : p)));
-
-  return (
-    <View style={styles.fieldWrapper}>
-      <View style={styles.labelRow}>
-        <Text style={styles.label}>Additional Attributes</Text>
-        <Text style={styles.optionalTag}>optional</Text>
-      </View>
-
-      {pairs.map((pair) => (
-        <View key={pair.id} style={attrStyles.pairRow}>
-          <View style={attrStyles.pairInputs}>
-            <TextInput
-              style={[styles.input, attrStyles.keyInput]}
-              placeholder="Key"
-              placeholderTextColor="#B0B8C8"
-              value={pair.key}
-              onChangeText={(v) => updatePair(pair.id, "key", v)}
-              autoCapitalize="none"
-            />
-            <View style={attrStyles.separatorDot} />
-            <TextInput
-              style={[styles.input, attrStyles.valueInput]}
-              placeholder="Value"
-              placeholderTextColor="#B0B8C8"
-              value={pair.value}
-              onChangeText={(v) => updatePair(pair.id, "value", v)}
-              autoCapitalize="none"
-            />
-          </View>
-          <TouchableOpacity
-            style={attrStyles.removeBtn}
-            onPress={() => removePair(pair.id)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <X size={13} color={COLORS.danger} />
-          </TouchableOpacity>
-        </View>
-      ))}
-
-      {pairs.length === 0 && (
-        <View style={attrStyles.emptyState}>
-          <Text style={attrStyles.emptyText}>No attributes added yet</Text>
-        </View>
-      )}
-
-      <TouchableOpacity
-        style={attrStyles.addBtn}
-        onPress={addPair}
-        activeOpacity={0.7}
-      >
-        <Plus size={14} color={COLORS.primary} />
-        <Text style={attrStyles.addBtnText}>Add Attribute</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
 
 const COLORS = {
   primary: "#4F6EF7",
@@ -253,68 +154,7 @@ const COLORS = {
   surfaceBg: "#F8FAFC",
 };
 
-const attrStyles = StyleSheet.create({
-  pairRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-    gap: 6,
-  },
-  pairInputs: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  keyInput: {
-    flex: 2,
-    fontSize: 12,
-    paddingVertical: 9,
-  },
-  separatorDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.mutedText,
-  },
-  valueInput: {
-    flex: 3,
-    fontSize: 12,
-    paddingVertical: 9,
-  },
-  removeBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    backgroundColor: "#FEF2F2",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyState: {
-    paddingVertical: 10,
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 11,
-    color: COLORS.mutedText,
-    fontWeight: "500",
-  },
-  addBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: COLORS.primaryLight,
-  },
-  addBtnText: {
-    fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: "700",
-  },
-});
+
 
 function validate(form: PropertyForm, propertyImages: string[]): string | null {
   for (const key of REQUIRED_FIELDS) {
@@ -1178,11 +1018,7 @@ export default function AddProperty() {
                                   ? item.amenities.join(", ")
                                   : item.amenities
                                 : "",
-                              additional_attributes: item.additional_attributes
-                                ? typeof item.additional_attributes === "string"
-                                  ? item.additional_attributes
-                                  : JSON.stringify(item.additional_attributes)
-                                : "",
+
                             });
                             setPropertyImages(item.property_images || []);
                             setCurrentStep(1);
@@ -1292,15 +1128,7 @@ export default function AddProperty() {
                   optional
                 />
 
-                <ScrollView
-                  style={styles.attrScroll}
-                  showsVerticalScrollIndicator={false}
-                >
-                  <AttributeBuilder
-                    value={form.additional_attributes}
-                    onChange={set("additional_attributes")}
-                  />
-                </ScrollView>
+
               </Section>
             )}
 
@@ -1876,7 +1704,7 @@ const styles = StyleSheet.create({
   },
 
   // ── Image Picker ──
-  attrScroll: { maxHeight: 130 },
+
   imageGridWrap: {
     flexDirection: "row",
     flexWrap: "wrap",

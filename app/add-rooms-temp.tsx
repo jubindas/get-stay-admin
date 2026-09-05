@@ -108,7 +108,7 @@ function Dropdown({
 }) {
   const [visible, setVisible] = useState(false);
   return (
-    <>=99
+    <>
       <TouchableOpacity
         style={s.dd}
         activeOpacity={0.7}
@@ -298,7 +298,7 @@ function PageTwo({ form, setForm }: { form: any; setForm: (f: any) => void }) {
 
   // Use roomConfigs, fallback to initializing it if not present
   const configs = form.roomConfigs || [
-    { room: "", roomCategory: "", beds: [{ bedType: "", bedCount: 1 }], extraBedType: "", extraBedPrice: "", tariff: "" }
+    { room: "", roomCategory: "", beds: [{ bedType: "", bedCount: 1 }], extraBedType: "", extraBedPrice: "", tariff: "", maxExtraBedAllowed: "" }
   ];
 
   const addConfig = () => {
@@ -306,7 +306,7 @@ function PageTwo({ form, setForm }: { form: any; setForm: (f: any) => void }) {
       ...form,
       roomConfigs: [
         ...configs,
-        { room: "", roomCategory: "", beds: [{ bedType: "", bedCount: 1 }], extraBedType: "", extraBedPrice: "", tariff: "" },
+        { room: "", roomCategory: "", beds: [{ bedType: "", bedCount: 1 }], extraBedType: "", extraBedPrice: "", tariff: "", maxExtraBedAllowed: "" },
       ],
     });
   };
@@ -427,6 +427,18 @@ function PageTwo({ form, setForm }: { form: any; setForm: (f: any) => void }) {
             onSelect={(v) => updateConfig(cIndex, 'extraBedType', v)}
           />
 
+          <View style={{ marginTop: 14 }}>
+            <Text style={s.fieldLbl}>Max Extra Bed allowed(Maximum extra bed allowed in this room category)</Text>
+            <TextInput
+              style={s.input}
+              placeholder="e.g. 1"
+              placeholderTextColor={C.placeholder}
+              value={config.maxExtraBedAllowed}
+              keyboardType="numeric"
+              onChangeText={(v) => updateConfig(cIndex, 'maxExtraBedAllowed', v)}
+            />
+          </View>
+
           <View style={[s.row, { marginTop: 14 }]}>
             <View style={{ flex: 1, marginRight: 10 }}>
               <Text style={s.fieldLbl}>Room Tariff</Text>
@@ -448,9 +460,6 @@ function PageTwo({ form, setForm }: { form: any; setForm: (f: any) => void }) {
         </Card>
       ))}
 
-      <TouchableOpacity style={s.addRoomBtn} activeOpacity={0.7} onPress={addConfig}>
-        <Text style={s.addRoomBtnTxt}>＋ Add another Room Config</Text>
-      </TouchableOpacity>
 
       <Modal transparent visible={isCategoryModalVisible} animationType="fade">
         <View style={s.overlay}>
@@ -612,6 +621,7 @@ export default function AddRoomsTemp() {
         extraBedType: "",
         extraBedPrice: "",
         tariff: "",
+        maxExtraBedAllowed: "",
       }
     ],
     toiletType: "",
