@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Header from "../components/Header";
 
 import {
@@ -74,14 +75,46 @@ interface StatusColors {
   border: string;
 }
 
+function isSameDate(a: RoomData, b: RoomData): boolean {
+  return a.year === b.year && a.month === b.month && a.day === b.day;
+}
+
+
+type SelectionMode = "single" | "multi" | "month";
+
 export default function RoomCategory() {
   const [selectedType, setSelectedType] = useState<string>("Single Room");
 
-  const [selectedDay, setSelectedDay] = useState<RoomData | null>(null);
+  const [selectedDays, setSelectedDays] = useState<RoomData[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>("single");
+
+  const [fabOpen, setFabOpen] = useState(false);
+  const fabAnim = useRef(new Animated.Value(0)).current;
+
+  const toggleFab = () => {
+    Animated.timing(fabAnim, {
+      toValue: fabOpen ? 0 : 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+    setFabOpen(!fabOpen);
+  };
+
+  const closeFab = () => {
+    if (fabOpen) {
+      Animated.timing(fabAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+      setFabOpen(false);
+    }
+  };
 
   const [selectedMonthIdx, setSelectedMonthIdx] = useState<number>(0);
 
-  // Track blocked rooms: key = "type|year-month-day|roomNumber"
   const [blockedRooms, setBlockedRooms] = useState<Record<string, boolean>>({});
 
   const getRoomPrefix = (type: string): number => {
@@ -93,20 +126,42 @@ export default function RoomCategory() {
   const getBlockKey = (type: string, day: RoomData, roomNum: number) =>
     `${type}|${day.year}-${day.month}-${day.day}|${roomNum}`;
 
-  const toggleBlock = useCallback(
-    (roomNum: number) => {
-      if (!selectedDay) return;
-      const key = getBlockKey(selectedType, selectedDay, roomNum);
-      setBlockedRooms((prev) => ({ ...prev, [key]: !prev[key] }));
+  const getRoomBlockStatus = useCallback(
+    (roomNum: number): "none" | "partial" | "all" => {
+      if (selectedDays.length === 0) return "none";
+      const blockedCount = selectedDays.filter(
+        (d) => !!blockedRooms[getBlockKey(selectedType, d, roomNum)],
+      ).length;
+      if (blockedCount === 0) return "none";
+      if (blockedCount === selectedDays.length) return "all";
+      return "partial";
     },
-    [selectedDay, selectedType],
+    [selectedDays, selectedType, blockedRooms],
   );
 
+  const toggleBlock = useCallback(
+    (roomNum: number) => {
+      if (selectedDays.length === 0) return;
+      const status = getRoomBlockStatus(roomNum);
+      const target = status !== "all";
+      setBlockedRooms((prev) => {
+        const next = { ...prev };
+        selectedDays.forEach((d) => {
+          next[getBlockKey(selectedType, d, roomNum)] = target;
+        });
+        return next;
+      });
+    },
+    [selectedDays, selectedType, getRoomBlockStatus],
+  );
+
+  const referenceDay = selectedDays[0] ?? null;
+
   const modalRooms = useMemo(() => {
-    if (!selectedDay) return [];
+    if (!referenceDay) return [];
     const prefix = getRoomPrefix(selectedType);
-    return Array.from({ length: selectedDay.totalRooms }, (_, i) => prefix + i + 1);
-  }, [selectedDay, selectedType]);
+    return Array.from({ length: referenceDay.totalRooms }, (_, i) => prefix + i + 1);
+  }, [referenceDay, selectedType]);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
@@ -178,12 +233,44 @@ export default function RoomCategory() {
     ]).start();
   };
 
+  const handleDayPress = (item: RoomData) => {
+    if (selectionMode === "single") {
+      setSelectedDays([item]);
+      setModalVisible(true);
+      return;
+    }
+    setSelectedDays((prev) =>
+      prev.some((d) => isSameDate(d, item))
+        ? prev.filter((d) => !isSameDate(d, item))
+        : [...prev, item],
+    );
+  };
+
+  const changeSelectionMode = (mode: SelectionMode) => {
+    if (mode === selectionMode) return;
+    setSelectionMode(mode);
+    setModalVisible(false);
+    setSelectedDays(mode === "month" ? days : []);
+    closeFab();
+  };
+
+  useEffect(() => {
+    if (selectionMode === "month") {
+      setSelectedDays(days);
+    }
+  }, [days, selectionMode]);
+
+  const selectWholeMonth = () => setSelectedDays(days);
+
+  const closeModal = () => {
+    setModalVisible(false);
+    if (selectionMode === "single") setSelectedDays([]);
+  };
+
   const getStatusColor = (avail: number, total: number): StatusColors => {
     if (avail === 0)
-      return { bg: "#FEE2E2", text: "#991B1B", border: "#FECACA" };
-    if (avail < total * 0.4)
-      return { bg: "#FFEDD5", text: "#9A3412", border: "#FED7AA" };
-    return { bg: "#F0FDF4", text: "#166534", border: "#BBF7D0" };
+      return { bg: "#EF4444", text: "#FFFFFF", border: "#EF4444" };
+    return { bg: "#FFFFFF", text: "#EF4444", border: "#EF4444" };
   };
 
   const totalAvailable = days.reduce((s, d) => s + d.availableRooms, 0);
@@ -192,7 +279,17 @@ export default function RoomCategory() {
 
   const totalRooms = (days[0]?.totalRooms ?? 0) * days.length;
 
-  const modalMonthName = selectedDay ? MONTH_NAMES[selectedDay.month] : "";
+  const modalStats = useMemo(() => {
+    if (selectedDays.length === 0) return null;
+    const capacity = referenceDay?.totalRooms ?? 0;
+    const bookedSum = selectedDays.reduce((s, d) => s + d.bookedRooms, 0);
+    const availableSum = selectedDays.reduce((s, d) => s + d.availableRooms, 0);
+    const occupancyPct =
+      capacity > 0 && selectedDays.length > 0
+        ? Math.round((bookedSum / (capacity * selectedDays.length)) * 100)
+        : 0;
+    return { capacity, bookedSum, availableSum, occupancyPct };
+  }, [selectedDays, referenceDay]);
 
   return (
     <View style={styles.mainWrapper}>
@@ -200,6 +297,11 @@ export default function RoomCategory() {
 
       <Header />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#0f172a' }}>
+            {MONTH_NAMES[currentMonthMeta.month]} {currentMonthMeta.year}
+          </Text>
+        </View>
         <View style={styles.summaryRow}>
           <View
             style={[
@@ -264,6 +366,8 @@ export default function RoomCategory() {
           ))}
         </View>
 
+
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -300,6 +404,17 @@ export default function RoomCategory() {
             );
           })}
         </ScrollView>
+
+        {selectionMode === "multi" && (
+          <Text style={[styles.modeHint, { marginBottom: 12, marginTop: -4 }]}>
+            Multi-Select Mode: Tap dates below, then manage them together
+          </Text>
+        )}
+        {selectionMode === "month" && (
+          <Text style={[styles.modeHint, { marginBottom: 12, marginTop: -4 }]}>
+            Whole Month Mode: Every day is selected — tap a date to exclude it
+          </Text>
+        )}
 
         <Animated.View style={[styles.calendarCard, { opacity: fadeAnim }]}>
           <View style={styles.calendarHeader}>
@@ -384,25 +499,34 @@ export default function RoomCategory() {
                 item.availableRooms,
                 item.totalRooms,
               );
+              const isSelected =
+                selectionMode !== "single" &&
+                selectedDays.some((d) => isSameDate(d, item));
               return (
                 <Pressable
                   key={item.day}
-                  onPress={() => setSelectedDay(item)}
+                  onPress={() => handleDayPress(item)}
                   style={({ pressed }) => [
                     styles.dayCell,
                     {
                       backgroundColor: colors.bg,
-                      borderColor: colors.border,
+                      borderColor: isSelected ? "#1D4ED8" : colors.border,
+                      borderWidth: isSelected ? 2 : 1,
                       opacity: pressed ? 0.7 : 1,
                     },
                   ]}
                 >
                   <Text style={[styles.dayNumber, { color: colors.text }]}>
-                    {item.availableRooms}
-                  </Text>
-                  <Text style={[styles.availText, { color: colors.text }]}>
                     {item.day}
                   </Text>
+                  <Text style={[styles.availText, { color: colors.text }]}>
+                    {item.availableRooms}
+                  </Text>
+                  {isSelected && (
+                    <View style={styles.selectedBadge}>
+                      <Text style={styles.selectedBadgeText}>✓</Text>
+                    </View>
+                  )}
                 </Pressable>
               );
             })}
@@ -412,23 +536,52 @@ export default function RoomCategory() {
           <View style={styles.legend}>
             <View style={styles.legendItem}>
               <View
-                style={[styles.legendDot, { backgroundColor: "#BBF7D0" }]}
+                style={[styles.legendDot, { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#EF4444" }]}
               />
               <Text style={styles.legendText}>Available</Text>
             </View>
             <View style={styles.legendItem}>
               <View
-                style={[styles.legendDot, { backgroundColor: "#FED7AA" }]}
-              />
-              <Text style={styles.legendText}>Low (&lt;40%)</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View
-                style={[styles.legendDot, { backgroundColor: "#FECACA" }]}
+                style={[styles.legendDot, { backgroundColor: "#EF4444" }]}
               />
               <Text style={styles.legendText}>Full</Text>
             </View>
           </View>
+
+          {/* ── Multi-select / whole-month action bar ── */}
+          {selectionMode !== "single" && (
+            <View style={styles.multiActionBar}>
+              <Text style={styles.multiActionText}>
+                {selectionMode === "month"
+                  ? `${selectedDays.length} of ${days.length} days selected`
+                  : `${selectedDays.length} date${selectedDays.length !== 1 ? "s" : ""} selected`}
+              </Text>
+              <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+                {selectionMode === "month" && selectedDays.length < days.length && (
+                  <TouchableOpacity style={styles.clearBtn} onPress={selectWholeMonth}>
+                    <Text style={styles.clearBtnText}>Select All</Text>
+                  </TouchableOpacity>
+                )}
+                {selectedDays.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.clearBtn}
+                    onPress={() => setSelectedDays([])}
+                  >
+                    <Text style={styles.clearBtnText}>Clear</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={[styles.manageBtn, selectedDays.length === 0 && styles.manageBtnDisabled]}
+                  onPress={() => selectedDays.length > 0 && setModalVisible(true)}
+                  disabled={selectedDays.length === 0}
+                >
+                  <Text style={styles.manageBtnText}>
+                    {selectionMode === "month" ? "Manage Whole Month" : "Manage Rooms"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </Animated.View>
 
         <View style={{ height: 40 }} />
@@ -436,43 +589,72 @@ export default function RoomCategory() {
 
       {/* ── Detail Modal ── */}
       <Modal
-        visible={!!selectedDay}
+        visible={modalVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setSelectedDay(null)}
+        onRequestClose={closeModal}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setSelectedDay(null)}
-        >
+        <Pressable style={styles.modalOverlay} onPress={closeModal}>
           <Pressable style={styles.modalCard} onPress={() => { }}>
-            {selectedDay && (
+            {selectedDays.length > 0 && modalStats && (
               <>
-                <Text style={styles.modalTitle}>
-                  {modalMonthName} {selectedDay.day}, {selectedDay.year}
-                </Text>
+                {selectedDays.length === 1 ? (
+                  <Text style={styles.modalTitle}>
+                    {MONTH_NAMES[selectedDays[0].month]} {selectedDays[0].day}, {selectedDays[0].year}
+                  </Text>
+                ) : (
+                  <Text style={styles.modalTitle}>
+                    {selectedDays.length} Dates Selected
+                  </Text>
+                )}
                 <Text style={styles.modalSubtitle}>{selectedType}</Text>
+
+                {selectedDays.length > 1 && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.dateChipsScroll}
+                    contentContainerStyle={styles.dateChipsRow}
+                  >
+                    {selectedDays
+                      .slice()
+                      .sort((a, b) => a.day - b.day)
+                      .map((d) => (
+                        <View key={`${d.year}-${d.month}-${d.day}`} style={styles.dateChip}>
+                          <Text style={styles.dateChipText}>
+                            {MONTH_NAMES[d.month].slice(0, 3)} {d.day}
+                          </Text>
+                        </View>
+                      ))}
+                  </ScrollView>
+                )}
 
                 <View style={styles.modalStats}>
                   <View style={styles.modalStatItem}>
                     <Text style={[styles.modalStatValue, { color: "#1D4ED8" }]}>
-                      {selectedDay.totalRooms}
+                      {modalStats.capacity}
                     </Text>
-                    <Text style={styles.modalStatLabel}>Total Rooms</Text>
+                    <Text style={styles.modalStatLabel}>
+                      {selectedDays.length === 1 ? "Total Rooms" : "Rooms / Day"}
+                    </Text>
                   </View>
                   <View style={styles.modalDivider} />
                   <View style={styles.modalStatItem}>
                     <Text style={[styles.modalStatValue, { color: "#166534" }]}>
-                      {selectedDay.availableRooms}
+                      {modalStats.availableSum}
                     </Text>
-                    <Text style={styles.modalStatLabel}>Available</Text>
+                    <Text style={styles.modalStatLabel}>
+                      {selectedDays.length === 1 ? "Available" : "Available (nights)"}
+                    </Text>
                   </View>
                   <View style={styles.modalDivider} />
                   <View style={styles.modalStatItem}>
                     <Text style={[styles.modalStatValue, { color: "#9A3412" }]}>
-                      {selectedDay.bookedRooms}
+                      {modalStats.bookedSum}
                     </Text>
-                    <Text style={styles.modalStatLabel}>Booked</Text>
+                    <Text style={styles.modalStatLabel}>
+                      {selectedDays.length === 1 ? "Booked" : "Booked (nights)"}
+                    </Text>
                   </View>
                 </View>
 
@@ -481,12 +663,11 @@ export default function RoomCategory() {
                     style={[
                       styles.occupancyBarFill,
                       {
-                        width: `${(selectedDay.bookedRooms / selectedDay.totalRooms) * 100}%`,
+                        width: `${modalStats.occupancyPct}%`,
                         backgroundColor:
-                          selectedDay.availableRooms === 0
+                          modalStats.occupancyPct >= 100
                             ? "#EF4444"
-                            : selectedDay.availableRooms <
-                              selectedDay.totalRooms * 0.4
+                            : modalStats.occupancyPct >= 60
                               ? "#F97316"
                               : "#22C55E",
                       },
@@ -494,51 +675,63 @@ export default function RoomCategory() {
                   />
                 </View>
                 <Text style={styles.occupancyText}>
-                  {Math.round(
-                    (selectedDay.bookedRooms / selectedDay.totalRooms) * 100,
-                  )}
-                  % Occupancy
+                  {modalStats.occupancyPct}% Occupancy
+                  {selectedDays.length > 1 ? " (avg)" : ""}
                 </Text>
 
                 {/* ── Room Block / Unblock List ── */}
                 <View style={styles.roomListSection}>
                   <Text style={styles.roomListTitle}>Rooms</Text>
-                  <Text style={styles.roomListHint}>Tap to block or unblock individual rooms</Text>
+                  <Text style={styles.roomListHint}>
+                    {selectedDays.length === 1
+                      ? "Tap to block or unblock individual rooms"
+                      : selectionMode === "month"
+                        ? "Blocking applies to every selected day this month"
+                        : "Blocking applies to every selected date at once"}
+                  </Text>
                   <ScrollView
                     style={styles.roomListScroll}
                     nestedScrollEnabled
                     showsVerticalScrollIndicator={false}
                   >
                     {modalRooms.map((roomNum) => {
-                      const key = getBlockKey(selectedType, selectedDay, roomNum);
-                      const isBlocked = !!blockedRooms[key];
+                      const status = getRoomBlockStatus(roomNum);
+                      const dotColor =
+                        status === "all"
+                          ? "#EF4444"
+                          : status === "partial"
+                            ? "#F59E0B"
+                            : "#22C55E";
+                      const btnStyle =
+                        status === "all"
+                          ? styles.unblockBtn
+                          : status === "partial"
+                            ? styles.partialBlockBtn
+                            : styles.blockBtnDefault;
+                      const btnTextStyle =
+                        status === "all"
+                          ? styles.unblockBtnText
+                          : status === "partial"
+                            ? styles.partialBlockBtnText
+                            : styles.blockBtnTextDefault;
+                      const label =
+                        status === "all"
+                          ? "Unblock"
+                          : status === "partial"
+                            ? "Block All"
+                            : "Block";
                       return (
                         <View key={roomNum} style={styles.roomRow}>
                           <View style={styles.roomInfo}>
-                            <View
-                              style={[
-                                styles.roomDot,
-                                { backgroundColor: isBlocked ? "#EF4444" : "#22C55E" },
-                              ]}
-                            />
+                            <View style={[styles.roomDot, { backgroundColor: dotColor }]} />
                             <Text style={styles.roomNumber}>Room {roomNum}</Text>
                           </View>
                           <TouchableOpacity
                             onPress={() => toggleBlock(roomNum)}
-                            style={[
-                              styles.blockBtn,
-                              isBlocked ? styles.unblockBtn : styles.blockBtnDefault,
-                            ]}
+                            style={[styles.blockBtn, btnStyle]}
                           >
-                            <Text
-                              style={[
-                                styles.blockBtnText,
-                                isBlocked
-                                  ? styles.unblockBtnText
-                                  : styles.blockBtnTextDefault,
-                              ]}
-                            >
-                              {isBlocked ? "Unblock" : "Block"}
+                            <Text style={[styles.blockBtnText, btnTextStyle]}>
+                              {label}
                             </Text>
                           </TouchableOpacity>
                         </View>
@@ -547,10 +740,7 @@ export default function RoomCategory() {
                   </ScrollView>
                 </View>
 
-                <TouchableOpacity
-                  style={styles.modalClose}
-                  onPress={() => setSelectedDay(null)}
-                >
+                <TouchableOpacity style={styles.modalClose} onPress={closeModal}>
                   <Text style={styles.modalCloseText}>Close</Text>
                 </TouchableOpacity>
               </>
@@ -558,6 +748,42 @@ export default function RoomCategory() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* ── FAB Speed Dial ── */}
+      <View style={styles.fabContainer} pointerEvents="box-none">
+        <View pointerEvents={fabOpen ? "auto" : "none"} style={styles.fabChildrenWrapper}>
+          <Animated.View style={[styles.fabChild, { opacity: fabAnim, transform: [{ translateY: fabAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
+            <View style={styles.fabLabelContainer}>
+              <Text style={styles.fabLabel}>Whole Month</Text>
+            </View>
+            <TouchableOpacity style={[styles.fabBtn, { backgroundColor: "#EA580C" }]} onPress={() => changeSelectionMode("month")} activeOpacity={0.8}>
+              <Ionicons name="calendar" size={20} color="#FFF" />
+            </TouchableOpacity>
+          </Animated.View>
+          <Animated.View style={[styles.fabChild, { opacity: fabAnim, transform: [{ translateY: fabAnim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }] }]}>
+            <View style={styles.fabLabelContainer}>
+              <Text style={styles.fabLabel}>Multi-Select</Text>
+            </View>
+            <TouchableOpacity style={[styles.fabBtn, { backgroundColor: "#9333EA" }]} onPress={() => changeSelectionMode("multi")} activeOpacity={0.8}>
+              <Ionicons name="list-outline" size={20} color="#FFF" />
+            </TouchableOpacity>
+          </Animated.View>
+          <Animated.View style={[styles.fabChild, { opacity: fabAnim, transform: [{ translateY: fabAnim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }] }]}>
+            <View style={styles.fabLabelContainer}>
+              <Text style={styles.fabLabel}>Single Date</Text>
+            </View>
+            <TouchableOpacity style={[styles.fabBtn, { backgroundColor: "#1D4ED8" }]} onPress={() => changeSelectionMode("single")} activeOpacity={0.8}>
+              <Ionicons name="calendar-outline" size={20} color="#FFF" />
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+
+        <TouchableOpacity style={styles.fabMain} onPress={toggleFab} activeOpacity={0.8}>
+          <Animated.View style={{ transform: [{ rotate: fabAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] }) }] }}>
+            <Ionicons name="add" size={28} color="#FFF" />
+          </Animated.View>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -628,6 +854,38 @@ const styles = StyleSheet.create({
   },
   monthChipYearActive: { color: "#94A3B8" },
 
+  // Selection mode toggle
+  modeRow: { marginBottom: 12 },
+  modeToggleContainer: {
+    flexDirection: "row",
+    backgroundColor: "#F1F5F9",
+    padding: 3,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+  },
+  modeTab: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  modeTabActive: {
+    backgroundColor: "#1D4ED8",
+  },
+  modeTabText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#64748B",
+  },
+  modeTabTextActive: {
+    color: "#FFFFFF",
+  },
+  modeHint: {
+    fontSize: 11,
+    color: "#94A3B8",
+    fontWeight: "500",
+    marginTop: 6,
+  },
+
   calendarCard: {
     backgroundColor: "#FFF",
     borderRadius: 24,
@@ -637,6 +895,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
+
   },
   calendarHeader: {
     flexDirection: "row",
@@ -677,13 +936,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "flex-start",
+
   },
   dayCell: {
     width: COLUMN_WIDTH,
     height: COLUMN_WIDTH + 10,
     margin: CELL_MARGIN,
     borderRadius: 8,
-    borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -700,6 +959,22 @@ const styles = StyleSheet.create({
     left: 5,
   },
   availText: { fontSize: 15, fontWeight: "800" },
+  selectedBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    backgroundColor: "#1D4ED8",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  selectedBadgeText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
 
   legend: {
     flexDirection: "row",
@@ -711,6 +986,47 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
   legendText: { fontSize: 11, color: "#64748B", fontWeight: "500" },
+
+  // Multi-select action bar (inside calendar card)
+  multiActionBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+  multiActionText: {
+    fontSize: 12.5,
+    fontWeight: "700",
+    color: "#334155",
+  },
+  clearBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: "#F1F5F9",
+  },
+  clearBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#64748B",
+  },
+  manageBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: "#1D4ED8",
+  },
+  manageBtnDisabled: {
+    backgroundColor: "#CBD5E1",
+  },
+  manageBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
 
   modalOverlay: {
     flex: 1,
@@ -741,12 +1057,33 @@ const styles = StyleSheet.create({
     color: "#64748B",
     textAlign: "center",
     marginTop: 4,
-    marginBottom: 24,
+  },
+  dateChipsScroll: {
+    marginTop: 14,
+    marginHorizontal: -28,
+  },
+  dateChipsRow: {
+    paddingHorizontal: 28,
+    gap: 8,
+  },
+  dateChip: {
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  dateChipText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#1D4ED8",
   },
   modalStats: {
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
+    marginTop: 24,
     marginBottom: 24,
   },
   modalStatItem: { alignItems: "center" },
@@ -756,6 +1093,7 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
     marginTop: 4,
     fontWeight: "500",
+    textAlign: "center",
   },
   modalDivider: { width: 1, height: 40, backgroundColor: "#E2E8F0" },
   occupancyBarBg: {
@@ -844,6 +1182,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0FDF4",
     borderColor: "#BBF7D0",
   },
+  partialBlockBtn: {
+    backgroundColor: "#FFFBEB",
+    borderColor: "#FDE68A",
+  },
   blockBtnText: {
     fontSize: 12,
     fontWeight: "700",
@@ -853,5 +1195,64 @@ const styles = StyleSheet.create({
   },
   unblockBtnText: {
     color: "#16A34A",
+  },
+  partialBlockBtnText: {
+    color: "#B45309",
+  },
+
+  // FAB Styles
+  fabContainer: {
+    position: "absolute",
+    bottom: 24,
+    right: 20,
+    alignItems: "flex-end",
+    zIndex: 999,
+  },
+  fabChildrenWrapper: {
+    alignItems: "flex-end",
+    marginBottom: 16,
+    gap: 16,
+  },
+  fabChild: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 12,
+  },
+  fabLabelContainer: {
+    backgroundColor: "rgba(0,0,0,0.7)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  fabLabel: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  fabBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  fabMain: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#1D4ED8",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
   },
 });

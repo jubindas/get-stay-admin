@@ -1,11 +1,8 @@
 import { useAuth } from "@/provider/AuthProvider";
 
-
 import { Ionicons } from "@expo/vector-icons";
 
-
-
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   ActivityIndicator,
@@ -21,8 +18,6 @@ import {
 } from "react-native";
 
 import Header from "../components/Header";
-
-
 
 const COLORS = {
   primary: "#003399",
@@ -41,9 +36,12 @@ const COLORS = {
   border: "#F1F5F9",
 };
 
-
-
 type BookingStatus = "Pending" | "Confirmed" | "Cancelled" | "CheckedIn";
+
+// The room-type buckets the filter bar groups bookings into.
+// "Other" catches categories that don't match Single / Double / King
+// (e.g. "Suite", "Dorm") and is only shown as a chip when it's non-empty.
+type RoomTypeFilter = "All" | "Single" | "Double" | "King" | "Other";
 
 interface RoomCategory {
   id: string;
@@ -137,6 +135,19 @@ function statusColor(status: BookingStatus) {
   }
 }
 
+/**
+ * Buckets a room category's free-text name into one of the fixed room-type
+ * filters. Matches by keyword so categories like "Deluxe King Room" or
+ * "King Suite" still land under "King", etc.
+ */
+function getRoomTypeBucket(categoryName?: string): Exclude<RoomTypeFilter, "All"> {
+  const name = (categoryName ?? "").toLowerCase();
+  if (name.includes("king")) return "King";
+  if (name.includes("double")) return "Double";
+  if (name.includes("single")) return "Single";
+  return "Other";
+}
+
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 const MOCK_BOOKINGS_TODAY: Booking[] = [
@@ -176,7 +187,7 @@ const MOCK_BOOKINGS_TODAY: Booking[] = [
           total_inventory: 10,
           room_category: {
             id: "rc1",
-            category_name: "Deluxe Suite",
+            category_name: "Deluxe King Suite",
             description: "A beautiful deluxe suite."
           }
         }
@@ -219,8 +230,51 @@ const MOCK_BOOKINGS_TODAY: Booking[] = [
           total_inventory: 5,
           room_category: {
             id: "rc2",
-            category_name: "Standard Room",
+            category_name: "Standard Single Room",
             description: "Standard room."
+          }
+        }
+      }
+    ]
+  },
+  {
+    id: "booking_today_3",
+    booking_reference: "REF-TODAY-003",
+    guest_name: "Priya Menon",
+    guest_email: "priya.m@example.com",
+    guest_phone: "+91 9012345678",
+    booking_status: "Pending",
+    payment_status: "Paid",
+    check_in_date: new Date().toISOString(),
+    check_out_date: new Date(Date.now() + 86400000 * 1).toISOString(),
+    grand_total: 6200,
+    amount_paid: 6200,
+    created_at: new Date(Date.now() - 86400000 * 1).toISOString(),
+    booking_items: [
+      {
+        id: "bi_3",
+        number_of_rooms: 1,
+        adults: 2,
+        children: 1,
+        extra_beds: 1,
+        base_price_booked: 5200,
+        total_room_amount: 5200,
+        extra_bed_amount: 500,
+        tax_amount: 500,
+        discount_amount: 0,
+        room: {
+          id: "r3",
+          property_name: "Ocean View Resort",
+          room_capacity: 3,
+          base_price: 5200,
+          amenities: ["Wi-Fi", "Breakfast"],
+          check_in_time: "14",
+          check_out_time: "11",
+          total_inventory: 6,
+          room_category: {
+            id: "rc3",
+            category_name: "Double Room",
+            description: "Double occupancy room."
           }
         }
       }
@@ -243,6 +297,14 @@ const MOCK_BOOKINGS_TODAY: Booking[] = [
   }
 ];
 
+const ROOM_TYPE_ICONS: Record<RoomTypeFilter, any> = {
+  All: "grid-outline",
+  Single: "bed-outline",
+  Double: "bed-outline",
+  King: "bed-outline",
+  Other: "ellipsis-horizontal-outline",
+};
+
 export default function TodaysCheckIn() {
   const { token } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -250,6 +312,7 @@ export default function TodaysCheckIn() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchActive, setSearchActive] = useState(false);
+  const [roomTypeFilter, setRoomTypeFilter] = useState<RoomTypeFilter>("All");
 
   const fetchBookings = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -285,7 +348,24 @@ export default function TodaysCheckIn() {
 
   const todayISO = new Date().toISOString().split("T")[0];
 
-  const todayArrivals = bookings.filter(
+  // Room-type bucket per booking (based on its first booking item's category).
+  const bookingRoomType = (b: Booking): Exclude<RoomTypeFilter, "All"> =>
+    getRoomTypeBucket(b.booking_items?.[0]?.room?.room_category?.category_name);
+
+  // Which room-type chips are worth showing — always show the three named
+  // types, and only show "Other" if at least one booking actually falls there.
+  const availableRoomTypes = useMemo(() => {
+    const base: RoomTypeFilter[] = ["All", "Single", "Double", "King"];
+    const hasOther = bookings.some((b) => bookingRoomType(b) === "Other");
+    return hasOther ? [...base, "Other" as RoomTypeFilter] : base;
+  }, [bookings]);
+
+  const filteredBookings = useMemo(() => {
+    if (roomTypeFilter === "All") return bookings;
+    return bookings.filter((b) => bookingRoomType(b) === roomTypeFilter);
+  }, [bookings, roomTypeFilter]);
+
+  const todayArrivals = filteredBookings.filter(
     (b) => b.check_in_date.split("T")[0] === todayISO
   );
 
@@ -346,16 +426,23 @@ export default function TodaysCheckIn() {
             <StatItem label="Cancelled" value={String(counts.cancelled)} />
           </View>
 
+          {/* ── Room type filter ── */}
+          <RoomTypeFilterBar
+            options={availableRoomTypes}
+            selected={roomTypeFilter}
+            onSelect={setRoomTypeFilter}
+          />
+
           {/* ── Today's arrivals header ── */}
           {todayArrivals.length > 0 && (
             <SectionLabel label={`Today's Arrivals (${todayArrivals.length})`} />
           )}
 
-          {/* ── All bookings ── */}
-          {bookings.length === 0 ? (
-            <EmptyState />
+          {/* ── Filtered bookings ── */}
+          {filteredBookings.length === 0 ? (
+            <EmptyState roomTypeFilter={roomTypeFilter} />
           ) : (
-            bookings.map((item, index) => (
+            filteredBookings.map((item, index) => (
               <BookingCard key={item.id} item={item} index={index} />
             ))
           )}
@@ -386,6 +473,44 @@ const StatItem = ({
   </View>
 );
 
+const RoomTypeFilterBar = ({
+  options,
+  selected,
+  onSelect,
+}: {
+  options: RoomTypeFilter[];
+  selected: RoomTypeFilter;
+  onSelect: (v: RoomTypeFilter) => void;
+}) => (
+  <ScrollView
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    style={styles.roomTypeScroll}
+    contentContainerStyle={styles.roomTypeRow}
+  >
+    {options.map((option) => {
+      const isActive = option === selected;
+      return (
+        <TouchableOpacity
+          key={option}
+          style={[styles.roomTypeChip, isActive && styles.roomTypeChipActive]}
+          onPress={() => onSelect(option)}
+          activeOpacity={0.85}
+        >
+          <Ionicons
+            name={ROOM_TYPE_ICONS[option]}
+            size={14}
+            color={isActive ? "#FFFFFF" : COLORS.textSubtle}
+          />
+          <Text style={[styles.roomTypeChipText, isActive && styles.roomTypeChipTextActive]}>
+            {option === "All" ? "All Rooms" : `${option} Room`}
+          </Text>
+        </TouchableOpacity>
+      );
+    })}
+  </ScrollView>
+);
+
 const SectionLabel = ({ label }: { label: string }) => (
   <View style={styles.sectionLabel}>
     <View style={styles.sectionDot} />
@@ -393,12 +518,16 @@ const SectionLabel = ({ label }: { label: string }) => (
   </View>
 );
 
-const EmptyState = () => (
+const EmptyState = ({ roomTypeFilter }: { roomTypeFilter: RoomTypeFilter }) => (
   <View style={styles.emptyState}>
     <Ionicons name="calendar-outline" size={48} color={COLORS.textSubtle} />
-    <Text style={styles.emptyTitle}>No bookings yet</Text>
+    <Text style={styles.emptyTitle}>
+      {roomTypeFilter === "All" ? "No bookings yet" : `No ${roomTypeFilter} Room bookings`}
+    </Text>
     <Text style={styles.emptySubtitle}>
-      Bookings made by guests will appear here.
+      {roomTypeFilter === "All"
+        ? "Bookings made by guests will appear here."
+        : "Try a different room type, or select \"All Rooms\" to see everything."}
     </Text>
   </View>
 );
@@ -532,12 +661,18 @@ function BookingCard({ item, index }: { item: Booking; index: number }) {
       </View>
 
       {/* ── Action ── */}
-      {isPending && (
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="checkmark-circle-outline" size={16} color={COLORS.primary} />
-          <Text style={styles.actionButtonText}>Check In Guest</Text>
+      <View style={styles.actionRowContainer}>
+        {isPending && (
+          <TouchableOpacity style={[styles.actionButton, { flex: 1 }]} activeOpacity={0.7}>
+            <Ionicons name="checkmark-circle-outline" size={16} color={COLORS.primary} />
+            <Text style={styles.actionButtonText}>Check In</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity style={[styles.actionButton, styles.addRoomButton, { flex: 1 }]} activeOpacity={0.7}>
+          <Ionicons name="add-circle-outline" size={16} color={COLORS.primary} />
+          <Text style={styles.actionButtonText}>Add Room</Text>
         </TouchableOpacity>
-      )}
+      </View>
     </Animated.View>
   );
 }
@@ -616,7 +751,7 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 24,
+    marginBottom: 20,
   },
   statItem: {
     flex: 1,
@@ -630,6 +765,39 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 18, fontWeight: "700", color: COLORS.textMain },
   statLabel: { fontSize: 11, color: COLORS.textSubtle, marginTop: 2 },
   statTextActive: { color: "#FFF" },
+
+  // Room type filter
+  roomTypeScroll: {
+    marginHorizontal: -20,
+    marginBottom: 20,
+  },
+  roomTypeRow: {
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  roomTypeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  roomTypeChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  roomTypeChipText: {
+    fontSize: 12.5,
+    fontWeight: "600",
+    color: COLORS.textSubtle,
+  },
+  roomTypeChipTextActive: {
+    color: "#FFFFFF",
+  },
 
   // Section label
   sectionLabel: {
@@ -821,8 +989,12 @@ const styles = StyleSheet.create({
 
   paymentLabel: { fontSize: 11, color: COLORS.textSubtle },
 
-  actionButton: {
+  actionRowContainer: {
+    flexDirection: "row",
+    gap: 10,
     marginTop: 14,
+  },
+  actionButton: {
     backgroundColor: COLORS.primaryLight,
     paddingVertical: 11,
     borderRadius: 10,
@@ -831,7 +1003,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
   },
-  actionButtonText: { fontSize: 14, fontWeight: "700", color: COLORS.primary },
+  addRoomButton: {
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.primaryLight,
+  },
+  actionButtonText: { fontSize: 13, fontWeight: "700", color: COLORS.primary },
 
   centered: {
     flex: 1,

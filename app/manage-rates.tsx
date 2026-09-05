@@ -1,9 +1,5 @@
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { Ionicons } from "@expo/vector-icons";
 import {
-  CalendarDays,
-  CircleDollarSign,
-  Percent,
-  Receipt,
   Save,
   SlidersHorizontal
 } from "lucide-react-native";
@@ -17,14 +13,12 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   TouchableOpacity,
   View
 } from "react-native";
 import Header from "../components/Header";
-import CalendarDayModal from "../components/CalendarDayModal";
 
 const { width } = Dimensions.get("window");
 const HORIZONTAL_PADDING = 32;
@@ -78,10 +72,14 @@ interface StatusColors {
 }
 
 const MOCK_ROOMS = [
-  { id: "room_101", name: "Room 101", defaultRate: 2500 },
-  { id: "room_102", name: "Room 102", defaultRate: 3000 },
-  { id: "room_103", name: "Room 103", defaultRate: 2500 },
+  { id: "room_101", name: "Room 101", defaultRate: 2500, type: "Single Room" },
+  { id: "room_102", name: "Room 102", defaultRate: 3000, type: "Double Room" },
+  { id: "room_103", name: "Room 103", defaultRate: 4000, type: "Suite" },
+  { id: "room_104", name: "Room 104", defaultRate: 2500, type: "Single Room" },
+  { id: "room_105", name: "Room 105", defaultRate: 3500, type: "Family Room" },
 ];
+
+type SelectionMode = "single" | "multi" | "month";
 
 export default function ManageRates() {
   const [basePrice, setBasePrice] = useState("2499");
@@ -89,12 +87,42 @@ export default function ManageRates() {
   const [discount, setDiscount] = useState("10");
   const [taxEnabled, setTaxEnabled] = useState(true);
   const [activeInput, setActiveInput] = useState<string | null>(null);
-  const [selectedDay, setSelectedDay] = useState<RoomAvailData | null>(null);
+  const [selectedType, setSelectedType] = useState<string>("Single Room");
+
+  const [selectedDays, setSelectedDays] = useState<RoomAvailData[]>([]);
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>("single");
+
+  const [fabOpen, setFabOpen] = useState(false);
+  const fabAnim = useRef(new Animated.Value(0)).current;
+
+  const toggleFab = () => {
+    Animated.timing(fabAnim, {
+      toValue: fabOpen ? 0 : 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+    setFabOpen(!fabOpen);
+  };
+
+  const closeFab = () => {
+    if (fabOpen) {
+      Animated.timing(fabAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+      setFabOpen(false);
+    }
+  };
+
+  const changeSelectionMode = (mode: SelectionMode) => {
+    if (mode === selectionMode) return;
+    setSelectionMode(mode);
+    closeFab();
+  };
 
   const [days, setDays] = useState<RoomData[]>([]);
   const [selectedMonthIdx, setSelectedMonthIdx] = useState<number>(0);
-
-  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
 
   // Format: 'YYYY-MM-DD' -> { roomId: rate }
   const [ratesByDate, setRatesByDate] = useState<Record<string, Record<string, number>>>({});
@@ -102,10 +130,6 @@ export default function ManageRates() {
   // Rate Modal State
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [newRateValue, setNewRateValue] = useState("");
-  const [rateStartDate, setRateStartDate] = useState(new Date());
-  const [rateEndDate, setRateEndDate] = useState(new Date());
-  const [showRateStartPicker, setShowRateStartPicker] = useState(false);
-  const [showRateEndPicker, setShowRateEndPicker] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const monthList = useMemo(() => buildMonthList(), []);
@@ -143,10 +167,8 @@ export default function ManageRates() {
 
   const getStatusColor = (avail: number, total: number): StatusColors => {
     if (avail === 0)
-      return { bg: "#FEE2E2", text: "#991B1B", border: "#FECACA" };
-    if (avail < total * 0.4)
-      return { bg: "#FFEDD5", text: "#9A3412", border: "#FED7AA" };
-    return { bg: "#F0FDF4", text: "#166534", border: "#BBF7D0" };
+      return { bg: "#EF4444", text: "#FFFFFF", border: "#EF4444" };
+    return { bg: "#FFFFFF", text: "#EF4444", border: "#EF4444" };
   };
 
   const availDays = useMemo(
@@ -155,15 +177,15 @@ export default function ManageRates() {
   );
 
   useEffect(() => {
-    setDays(generateMonthData(currentMonthMeta.year, currentMonthMeta.month));
-  }, [selectedMonthIdx]);
-
-  const getDateKey = (date: Date) => {
-    return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-  };
+    if (selectionMode === "month") {
+      setSelectedDays(availDays);
+    } else {
+      setSelectedDays([]);
+    }
+  }, [availDays, selectionMode]);
 
   const handleSaveRate = () => {
-    if (!editingRoomId) return;
+    if (!editingRoomId || selectedDays.length === 0) return;
 
     const trimmedValue = newRateValue.trim();
     const rateNumber = Number(trimmedValue);
@@ -174,20 +196,16 @@ export default function ManageRates() {
 
     setRatesByDate(prev => {
       const nextRates = { ...prev };
-      let currentDate = new Date(rateStartDate);
-      currentDate.setHours(0, 0, 0, 0);
-      const end = new Date(rateEndDate);
-      end.setHours(0, 0, 0, 0);
 
-      while (currentDate <= end) {
-        const dateKey = getDateKey(currentDate);
+      selectedDays.forEach(day => {
+        const dateKey = `${day.year}-${day.month + 1}-${day.day}`;
         const existingRates = nextRates[dateKey] || {};
         nextRates[dateKey] = {
           ...existingRates,
-          [editingRoomId]: rateNumber
+          [editingRoomId]: rateNumber,
         };
-        currentDate.setDate(currentDate.getDate() + 1);
-      }
+      });
+
       return nextRates;
     });
 
@@ -205,14 +223,13 @@ export default function ManageRates() {
     setSelectedMonthIdx(idx);
 
     const newMonthMeta = monthList[idx];
-    setSelectedDate(new Date(newMonthMeta.year, newMonthMeta.month, 1));
   };
 
   const blankCount = firstDayOffset(currentMonthMeta.year, currentMonthMeta.month);
   const blankDays = Array.from({ length: blankCount }, (_, i) => i);
 
-  const selectedDateKey = selectedDate ? getDateKey(selectedDate) : null;
-  const selectedDateRates = selectedDateKey ? (ratesByDate[selectedDateKey] || {}) : {};
+  const referenceDateKey = selectedDays.length > 0 ? `${selectedDays[0].year}-${selectedDays[0].month + 1}-${selectedDays[0].day}` : null;
+  const selectedDateRates = referenceDateKey ? (ratesByDate[referenceDateKey] || {}) : {};
 
   return (
     <>
@@ -224,6 +241,11 @@ export default function ManageRates() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#0f172a' }}>
+            {MONTH_NAMES[currentMonthMeta.month]} {currentMonthMeta.year}
+          </Text>
+        </View>
         <View style={styles.heroCard}>
           <View style={styles.iconContainer}>
             <SlidersHorizontal color="#0284c7" size={20} />
@@ -236,174 +258,212 @@ export default function ManageRates() {
           </View>
         </View>
 
-        {/* --- Availability Calendar Section --- */}
-        <View style={styles.card}>
-          <Text style={styles.cardMainTitle}>Room Availability</Text>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.monthPickerScroll}
-            contentContainerStyle={styles.monthPickerContent}
-          >
-            {monthList.map((m, idx) => {
-              const isActive = idx === selectedMonthIdx;
-              const shortName = MONTH_NAMES[m.month].slice(0, 3).toUpperCase();
-              const isFirst = idx === 0;
-              return (
-                <TouchableOpacity
-                  key={`${m.year}-${m.month}`}
-                  onPress={() => handleMonthChange(idx)}
-                  style={[styles.monthChip, isActive && styles.monthChipActive]}
-                >
-                  <Text style={[styles.monthChipText, isActive && styles.monthChipTextActive]}>
-                    {shortName}
-                  </Text>
-                  <Text style={[styles.monthChipYear, isActive && styles.monthChipYearActive]}>
-                    {isFirst ? "Now" : `${m.year}`}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          <Animated.View style={[styles.calendarCard, { opacity: fadeAnim }]}>
-            <View style={styles.calendarHeader}>
-              <TouchableOpacity
-                onPress={() =>
-                  handleMonthChange(Math.max(0, selectedMonthIdx - 1))
-                }
+        {/* ── Room Category Selection ── */}
+        <View style={styles.segmentContainer}>
+          {["Single Room", "Double Room", "Suite", "Family Room"].map((t) => (
+            <TouchableOpacity
+              key={t}
+              style={[
+                styles.segmentTab,
+                selectedType === t && styles.activeSegment,
+              ]}
+              onPress={() => {
+                setSelectedType(t);
+                Animated.sequence([
+                  Animated.timing(fadeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
+                  Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true })
+                ]).start();
+              }}
+            >
+              <Text
                 style={[
-                  styles.navBtn,
-                  selectedMonthIdx === 0 && styles.navBtnDisabled,
+                  styles.segmentText,
+                  selectedType === t && styles.activeSegmentText,
                 ]}
-                disabled={selectedMonthIdx === 0}
               >
-                <Text
-                  style={[
-                    styles.navBtnText,
-                    selectedMonthIdx === 0 && styles.navBtnTextDisabled,
-                  ]}
-                >
-                  ‹
-                </Text>
-              </TouchableOpacity>
-
-              <View style={styles.calendarTitleBlock}>
-                <Text style={styles.monthTitle}>
-                  {MONTH_NAMES[currentMonthMeta.month]}
-                </Text>
-                <Text style={styles.yearLabel}>{currentMonthMeta.year}</Text>
-              </View>
-
-              <TouchableOpacity
-                onPress={() =>
-                  handleMonthChange(
-                    Math.min(monthList.length - 1, selectedMonthIdx + 1),
-                  )
-                }
-                style={[
-                  styles.navBtn,
-                  selectedMonthIdx === monthList.length - 1 &&
-                  styles.navBtnDisabled,
-                ]}
-                disabled={selectedMonthIdx === monthList.length - 1}
-              >
-                <Text
-                  style={[
-                    styles.navBtnText,
-                    selectedMonthIdx === monthList.length - 1 &&
-                    styles.navBtnTextDisabled,
-                  ]}
-                >
-                  ›
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Week Header */}
-            <View style={styles.weekHeader}>
-              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-                <View
-                  key={d}
-                  style={{
-                    width: COLUMN_WIDTH + CELL_MARGIN * 2,
-                    alignItems: "center",
-                  }}
-                >
-                  <Text
-                    style={[styles.weekText, d === "Sun" && { color: "#EF4444" }]}
-                  >
-                    {d}
-                  </Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Grid */}
-            <View style={styles.grid}>
-              {blankDays.map((b) => (
-                <View key={`blank-${b}`} style={styles.blankCell} />
-              ))}
-              {availDays.map((item) => {
-                const colors = getStatusColor(
-                  item.availableRooms,
-                  item.totalRooms,
-                );
-                return (
-                  <Pressable
-                    key={item.day}
-                    onPress={() => setSelectedDay(item)}
-                    style={({ pressed }) => [
-                      styles.dayCell,
-                      {
-                        backgroundColor: colors.bg,
-                        borderColor: colors.border,
-                        opacity: pressed ? 0.7 : 1,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.dayNumber, { color: colors.text }]}>
-                      {item.availableRooms}
-                    </Text>
-                    <Text style={[styles.availText, { color: colors.text }]}>
-                      {item.day}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            {/* Legend */}
-            <View style={styles.legend}>
-              <View style={styles.legendItem}>
-                <View
-                  style={[styles.legendDot, { backgroundColor: "#BBF7D0" }]}
-                />
-                <Text style={styles.legendText}>Available</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View
-                  style={[styles.legendDot, { backgroundColor: "#FED7AA" }]}
-                />
-                <Text style={styles.legendText}>Low (&lt;40%)</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View
-                  style={[styles.legendDot, { backgroundColor: "#FECACA" }]}
-                />
-                <Text style={styles.legendText}>Full</Text>
-              </View>
-            </View>
-          </Animated.View>
+                {t}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
+
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.monthPickerScroll}
+          contentContainerStyle={styles.monthPickerContent}
+        >
+          {monthList.map((m, idx) => {
+            const isActive = idx === selectedMonthIdx;
+            const shortName = MONTH_NAMES[m.month].slice(0, 3).toUpperCase();
+            const isFirst = idx === 0;
+            return (
+              <TouchableOpacity
+                key={`${m.year}-${m.month}`}
+                onPress={() => handleMonthChange(idx)}
+                style={[styles.monthChip, isActive && styles.monthChipActive]}
+              >
+                <Text style={[styles.monthChipText, isActive && styles.monthChipTextActive]}>
+                  {shortName}
+                </Text>
+                <Text style={[styles.monthChipYear, isActive && styles.monthChipYearActive]}>
+                  {isFirst ? "Now" : `${m.year}`}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        <Animated.View style={[styles.calendarCard, { opacity: fadeAnim }]}>
+          <View style={styles.calendarHeader}>
+            <TouchableOpacity
+              onPress={() =>
+                handleMonthChange(Math.max(0, selectedMonthIdx - 1))
+              }
+              style={[
+                styles.navBtn,
+                selectedMonthIdx === 0 && styles.navBtnDisabled,
+              ]}
+              disabled={selectedMonthIdx === 0}
+            >
+              <Text
+                style={[
+                  styles.navBtnText,
+                  selectedMonthIdx === 0 && styles.navBtnTextDisabled,
+                ]}
+              >
+                ‹
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.calendarTitleBlock}>
+              <Text style={styles.monthTitle}>
+                {MONTH_NAMES[currentMonthMeta.month]}
+              </Text>
+              <Text style={styles.yearLabel}>{currentMonthMeta.year}</Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() =>
+                handleMonthChange(
+                  Math.min(monthList.length - 1, selectedMonthIdx + 1),
+                )
+              }
+              style={[
+                styles.navBtn,
+                selectedMonthIdx === monthList.length - 1 &&
+                styles.navBtnDisabled,
+              ]}
+              disabled={selectedMonthIdx === monthList.length - 1}
+            >
+              <Text
+                style={[
+                  styles.navBtnText,
+                  selectedMonthIdx === monthList.length - 1 &&
+                  styles.navBtnTextDisabled,
+                ]}
+              >
+                ›
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Week Header */}
+          <View style={styles.weekHeader}>
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+              <View
+                key={d}
+                style={{
+                  width: COLUMN_WIDTH + CELL_MARGIN * 2,
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={[styles.weekText, d === "Sun" && { color: "#EF4444" }]}
+                >
+                  {d}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Grid */}
+          <View style={styles.grid}>
+            {blankDays.map((b) => (
+              <View key={`blank-${b}`} style={styles.blankCell} />
+            ))}
+            {availDays.map((item) => {
+              const colors = getStatusColor(
+                item.availableRooms,
+                item.totalRooms,
+              );
+              const isSelected = selectedDays.some(d => d.day === item.day && d.month === item.month && d.year === item.year);
+              return (
+                <Pressable
+                  key={item.day}
+                  onPress={() => {
+                    if (selectionMode === "single") {
+                      setSelectedDays([item]);
+                    } else {
+                      setSelectedDays((prev) =>
+                        prev.some((d) => d.day === item.day && d.month === item.month && d.year === item.year)
+                          ? prev.filter((d) => !(d.day === item.day && d.month === item.month && d.year === item.year))
+                          : [...prev, item]
+                      );
+                    }
+                  }}
+                  style={({ pressed }) => [
+                    styles.dayCell,
+                    {
+                      backgroundColor: colors.bg,
+                      borderColor: isSelected ? "#1D4ED8" : colors.border,
+                      borderWidth: isSelected ? 2 : 1,
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.dayNumber, { color: colors.text }]}>
+                    {item.day}
+                  </Text>
+                  <Text style={[styles.availText, { color: colors.text }]}>
+                    {item.availableRooms}
+                  </Text>
+                  {isSelected && (
+                    <View style={styles.selectedBadge}>
+                      <Text style={styles.selectedBadgeText}>✓</Text>
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Legend */}
+          <View style={styles.legend}>
+            <View style={styles.legendItem}>
+              <View
+                style={[styles.legendDot, { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#EF4444" }]}
+              />
+              <Text style={styles.legendText}>Available</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View
+                style={[styles.legendDot, { backgroundColor: "#EF4444" }]}
+              />
+              <Text style={styles.legendText}>Full</Text>
+            </View>
+          </View>
+        </Animated.View>
+
+
         {/* --- Room Rates Section --- */}
-        {selectedDate && (
+        {selectedDays.length > 0 && (
           <View style={styles.card}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <Text style={styles.cardMainTitle}>
-                Rates for {selectedDate.toDateString()}
+                Rates for {selectedDays.length} date{selectedDays.length !== 1 ? 's' : ''}
               </Text>
             </View>
 
@@ -414,8 +474,8 @@ export default function ManageRates() {
                 <Text style={[styles.roomListHeaderText, { flex: 1, textAlign: 'right' }]}>Action</Text>
               </View>
 
-              {MOCK_ROOMS.map((room, index) => {
-                const isLast = index === MOCK_ROOMS.length - 1;
+              {MOCK_ROOMS.filter(r => r.type === selectedType).map((room, index, arr) => {
+                const isLast = index === arr.length - 1;
                 const customRate = selectedDateRates[room.id];
                 const hasCustomRate = customRate !== undefined;
                 const displayRate = hasCustomRate ? customRate : "Not Set";
@@ -441,10 +501,6 @@ export default function ManageRates() {
                       onPress={() => {
                         setEditingRoomId(room.id);
                         setNewRateValue(hasCustomRate ? customRate.toString() : room.defaultRate.toString());
-                        if (selectedDate) {
-                          setRateStartDate(selectedDate);
-                          setRateEndDate(selectedDate);
-                        }
                       }}
                     >
                       <Text style={styles.editBtnText}>Set</Text>
@@ -456,102 +512,6 @@ export default function ManageRates() {
           </View>
         )}
 
-        <View style={styles.card}>
-          <Text style={styles.cardMainTitle}>Rate Optimization</Text>
-
-          <View style={styles.inputWrapper}>
-            <Text style={styles.label}>Base Price Per Night</Text>
-            <View style={[
-              styles.inputContainer,
-              activeInput === "base" && styles.inputContainerActive
-            ]}>
-              <View style={styles.prefix}>
-                <CircleDollarSign color={activeInput === "base" ? "#0284c7" : "#64748b"} size={18} />
-              </View>
-              <TextInput
-                value={basePrice}
-                onChangeText={setBasePrice}
-                keyboardType="numeric"
-                placeholder="0.00"
-                placeholderTextColor="#94a3b8"
-                style={styles.input}
-                onFocus={() => setActiveInput("base")}
-                onBlur={() => setActiveInput(null)}
-              />
-              <Text style={styles.suffixText}>RS</Text>
-            </View>
-          </View>
-
-          <View style={styles.inputWrapper}>
-            <Text style={styles.label}>Weekend Surge Premium</Text>
-            <View style={[
-              styles.inputContainer,
-              activeInput === "weekend" && styles.inputContainerActive
-            ]}>
-              <View style={styles.prefix}>
-                <CalendarDays color={activeInput === "weekend" ? "#0284c7" : "#64748b"} size={18} />
-              </View>
-              <TextInput
-                value={weekendPrice}
-                onChangeText={setWeekendPrice}
-                keyboardType="numeric"
-                placeholder="0.00"
-                placeholderTextColor="#94a3b8"
-                style={styles.input}
-                onFocus={() => setActiveInput("weekend")}
-                onBlur={() => setActiveInput(null)}
-              />
-              <Text style={styles.suffixText}>RS</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Marketing & Discounts */}
-        <View style={styles.card}>
-          <Text style={styles.cardMainTitle}>Promotional Strategy</Text>
-
-          <View style={styles.inputWrapper}>
-            <Text style={styles.label}>Default Discount Offer</Text>
-            <View style={[
-              styles.inputContainer,
-              activeInput === "discount" && styles.inputContainerActive
-            ]}>
-              <TextInput
-                value={discount}
-                onChangeText={setDiscount}
-                keyboardType="numeric"
-                placeholder="0"
-                placeholderTextColor="#94a3b8"
-                style={[styles.input, { paddingLeft: 16 }]}
-                onFocus={() => setActiveInput("discount")}
-                onBlur={() => setActiveInput(null)}
-              />
-              <View style={styles.suffixIcon}>
-                <Percent color={activeInput === "discount" ? "#0284c7" : "#64748b"} size={16} />
-              </View>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.toggleCard}>
-          <View style={styles.toggleHeader}>
-            <View style={styles.toggleIconBox}>
-              <Receipt color="#10b981" size={20} />
-            </View>
-            <View style={styles.toggleTextPane}>
-              <Text style={styles.toggleTitle}>Automate Regional Taxes</Text>
-              <Text style={styles.toggleSubtitle}>
-                Calculate and transparently attach mandatory dynamic itemized tax structures onto the room base totals.
-              </Text>
-            </View>
-          </View>
-          <Switch
-            value={taxEnabled}
-            onValueChange={setTaxEnabled}
-            trackColor={{ false: "#e2e8f0", true: "#a7f3d0" }}
-            thumbColor={taxEnabled ? "#10b981" : "#f1f5f9"}
-          />
-        </View>
 
         <TouchableOpacity style={styles.saveButton} activeOpacity={0.8}>
           <Save color="#ffffff" size={18} style={{ marginRight: 8 }} />
@@ -571,33 +531,9 @@ export default function ManageRates() {
               {MOCK_ROOMS.find(r => r.id === editingRoomId)?.name}
             </Text>
 
-            <View style={styles.datePickerRow}>
-              <View style={styles.datePickerCol}>
-                <Text style={styles.modalLabel}>Start Date</Text>
-                <TouchableOpacity
-                  style={styles.dateBtn}
-                  onPress={() => setShowRateStartPicker(true)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.dateBtnText}>
-                    {rateStartDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.datePickerCol}>
-                <Text style={styles.modalLabel}>End Date</Text>
-                <TouchableOpacity
-                  style={styles.dateBtn}
-                  onPress={() => setShowRateEndPicker(true)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.dateBtnText}>
-                    {rateEndDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            <Text style={{ textAlign: 'center', marginVertical: 12, color: '#64748B' }}>
+              Applying rate to {selectedDays.length} selected date{selectedDays.length !== 1 ? 's' : ''}.
+            </Text>
 
             <View style={styles.rateInputSection}>
               <Text style={styles.modalLabel}>New Rate (₹)</Text>
@@ -610,31 +546,6 @@ export default function ManageRates() {
                 placeholderTextColor="#94A3B8"
               />
             </View>
-
-            {showRateStartPicker && (
-              <DateTimePicker
-                value={rateStartDate}
-                mode="date"
-                display="default"
-                onChange={(event, date) => {
-                  setShowRateStartPicker(false);
-                  if (date) setRateStartDate(date);
-                }}
-              />
-            )}
-
-            {showRateEndPicker && (
-              <DateTimePicker
-                value={rateEndDate}
-                mode="date"
-                display="default"
-                minimumDate={rateStartDate}
-                onChange={(event, date) => {
-                  setShowRateEndPicker(false);
-                  if (date) setRateEndDate(date);
-                }}
-              />
-            )}
 
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -654,12 +565,41 @@ export default function ManageRates() {
         </Pressable>
       </Modal>
 
-      <CalendarDayModal
-        visible={!!selectedDay}
-        onClose={() => setSelectedDay(null)}
-        dayData={selectedDay}
-        roomType="All Rooms"
-      />
+      {/* ── FAB Speed Dial ── */}
+      <View style={styles.fabContainer} pointerEvents="box-none">
+        <View pointerEvents={fabOpen ? "auto" : "none"} style={styles.fabChildrenWrapper}>
+          <Animated.View style={[styles.fabChild, { opacity: fabAnim, transform: [{ translateY: fabAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
+            <View style={styles.fabLabelContainer}>
+              <Text style={styles.fabLabel}>Whole Month</Text>
+            </View>
+            <TouchableOpacity style={[styles.fabBtn, { backgroundColor: "#EA580C" }]} onPress={() => changeSelectionMode("month")} activeOpacity={0.8}>
+              <Ionicons name="calendar" size={20} color="#FFF" />
+            </TouchableOpacity>
+          </Animated.View>
+          <Animated.View style={[styles.fabChild, { opacity: fabAnim, transform: [{ translateY: fabAnim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }] }]}>
+            <View style={styles.fabLabelContainer}>
+              <Text style={styles.fabLabel}>Multi-Select</Text>
+            </View>
+            <TouchableOpacity style={[styles.fabBtn, { backgroundColor: "#9333EA" }]} onPress={() => changeSelectionMode("multi")} activeOpacity={0.8}>
+              <Ionicons name="list-outline" size={20} color="#FFF" />
+            </TouchableOpacity>
+          </Animated.View>
+          <Animated.View style={[styles.fabChild, { opacity: fabAnim, transform: [{ translateY: fabAnim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }] }]}>
+            <View style={styles.fabLabelContainer}>
+              <Text style={styles.fabLabel}>Single Date</Text>
+            </View>
+            <TouchableOpacity style={[styles.fabBtn, { backgroundColor: "#1D4ED8" }]} onPress={() => changeSelectionMode("single")} activeOpacity={0.8}>
+              <Ionicons name="calendar-outline" size={20} color="#FFF" />
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+
+        <TouchableOpacity style={styles.fabMain} onPress={toggleFab} activeOpacity={0.8}>
+          <Animated.View style={{ transform: [{ rotate: fabAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] }) }] }}>
+            <Ionicons name="add" size={28} color="#FFF" />
+          </Animated.View>
+        </TouchableOpacity>
+      </View>
     </>
   );
 }
@@ -709,6 +649,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
+    marginTop: 15,
   },
   cardMainTitle: {
     fontSize: 15,
@@ -816,6 +757,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
   },
+  segmentContainer: {
+    flexDirection: "row",
+    backgroundColor: "#E2E8F0",
+    padding: 4,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  segmentTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 10,
+  },
+  activeSegment: {
+    backgroundColor: "#FFF",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+  },
+  segmentText: { fontSize: 12, fontWeight: "600", color: "#64748B" },
+  activeSegmentText: { color: "#0F172A" },
   monthPickerScroll: { marginBottom: 16 },
   monthPickerContent: { paddingRight: 4, gap: 8, flexDirection: "row" },
   monthChip: {
@@ -853,6 +816,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
+    marginBottom: 15,
   },
   calendarHeader: {
     flexDirection: "row",
@@ -912,10 +876,9 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "600",
     position: "absolute",
-    top: 4,
-    left: 5,
+    bottom: 4,
   },
-  availText: { fontSize: 15, fontWeight: "800" },
+  availText: { fontSize: 15, fontWeight: "800", marginTop: -4 },
 
   legend: {
     flexDirection: "row",
@@ -1104,5 +1067,77 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
     fontSize: 15,
-  }
+  },
+  selectedBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    backgroundColor: "#1D4ED8",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  selectedBadgeText: {
+    color: "#FFF",
+    fontSize: 9,
+    fontWeight: "800",
+  },
+
+  // FAB Styles
+  fabContainer: {
+    position: "absolute",
+    bottom: 24,
+    right: 20,
+    alignItems: "flex-end",
+    zIndex: 999,
+  },
+  fabChildrenWrapper: {
+    alignItems: "flex-end",
+    marginBottom: 16,
+    gap: 16,
+  },
+  fabChild: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 12,
+  },
+  fabLabelContainer: {
+    backgroundColor: "rgba(0,0,0,0.7)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  fabLabel: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  fabBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  fabMain: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#1D4ED8",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
+  },
 });
